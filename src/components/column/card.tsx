@@ -1,5 +1,6 @@
 import type { NewsItem, SourceID, SourceResponse } from "@shared/types"
 import { useQuery } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
 import { AnimatePresence, motion, useInView } from "framer-motion"
 import { useWindowSize } from "react-use"
 import { forwardRef, useImperativeHandle } from "react"
@@ -231,29 +232,65 @@ function NewsListHot({ items }: { items: NewsItem[] }) {
   return (
     <ol className="flex flex-col gap-2">
       {items?.map((item, i) => (
-        <a
-          href={width < 768 ? item.mobileUrl || item.url : item.url}
-          target="_blank"
-          key={item.id}
-          title={item.extra?.hover}
-          className={$(
-            "flex gap-2 items-center items-stretch relative cursor-pointer [&_*]:cursor-pointer transition-all",
-            "hover:bg-neutral-400/10 rounded-md pr-1 visited:(text-neutral-400)",
-          )}
-        >
-          <span className={$("bg-neutral-400/10 min-w-6 flex justify-center items-center rounded-md text-sm")}>
-            {i + 1}
-          </span>
-          {!!item.extra?.diff && <DiffNumber diff={item.extra.diff} />}
-          <span className="self-start line-height-none">
-            <span className="mr-2 text-base">
-              {item.title}
-            </span>
-            <span className="text-xs text-neutral-400/80 truncate align-middle">
-              <ExtraInfo item={item} />
-            </span>
-          </span>
-        </a>
+        width < 768
+          ? (
+              <Link
+                to="/detail"
+                search={{
+                  url: item.mobileUrl || item.url,
+                  title: item.title,
+                  source: "",
+                  time: "",
+                  sid: undefined,
+                  iid: undefined,
+                }}
+                key={item.id}
+                title={item.extra?.hover}
+                className={$(
+                  "flex gap-2 items-center items-stretch relative cursor-pointer [&_*]:cursor-pointer transition-all",
+                  "hover:bg-neutral-400/10 rounded-md pr-1 visited:(text-neutral-400)",
+                )}
+              >
+                <span className={$("bg-neutral-400/10 min-w-6 flex justify-center items-center rounded-md text-sm")}>
+                  {i + 1}
+                </span>
+                {!!item.extra?.diff && <DiffNumber diff={item.extra.diff} />}
+                <span className="self-start line-height-none">
+                  <span className="mr-2 text-base">
+                    {item.title}
+                  </span>
+                  <span className="text-xs text-neutral-400/80 truncate align-middle">
+                    <ExtraInfo item={item} />
+                  </span>
+                </span>
+              </Link>
+            )
+          : (
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                key={item.id}
+                title={item.extra?.hover}
+                className={$(
+                  "flex gap-2 items-center items-stretch relative cursor-pointer [&_*]:cursor-pointer transition-all",
+                  "hover:bg-neutral-400/10 rounded-md pr-1 visited:(text-neutral-400)",
+                )}
+              >
+                <span className={$("bg-neutral-400/10 min-w-6 flex justify-center items-center rounded-md text-sm")}>
+                  {i + 1}
+                </span>
+                {!!item.extra?.diff && <DiffNumber diff={item.extra.diff} />}
+                <span className="self-start line-height-none">
+                  <span className="mr-2 text-base">
+                    {item.title}
+                  </span>
+                  <span className="text-xs text-neutral-400/80 truncate align-middle">
+                    <ExtraInfo item={item} />
+                  </span>
+                </span>
+              </a>
+            )
       ))}
     </ol>
   )
@@ -274,18 +311,41 @@ function NewsListTimeLine({ items }: { items: NewsItem[] }) {
               <ExtraInfo item={item} />
             </span>
           </span>
-          <a
-            className={$(
-              "ml-2 px-1 hover:bg-neutral-400/10 rounded-md visited:(text-neutral-400/80)",
-              "cursor-pointer [&_*]:cursor-pointer transition-all",
-            )}
-            href={width < 768 ? item.mobileUrl || item.url : item.url}
-            title={item.extra?.hover}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {item.title}
-          </a>
+          {width < 768
+            ? (
+                <Link
+                  to="/detail"
+                  search={{
+                    url: item.mobileUrl || item.url,
+                    title: item.title,
+                    source: "",
+                    time: "",
+                    sid: undefined,
+                    iid: undefined,
+                  }}
+                  className={$(
+                    "ml-2 px-1 hover:bg-neutral-400/10 rounded-md visited:(text-neutral-400/80)",
+                    "cursor-pointer [&_*]:cursor-pointer transition-all",
+                  )}
+                  title={item.extra?.hover}
+                >
+                  {item.title}
+                </Link>
+              )
+            : (
+                <a
+                  className={$(
+                    "ml-2 px-1 hover:bg-neutral-400/10 rounded-md visited:(text-neutral-400/80)",
+                    "cursor-pointer [&_*]:cursor-pointer transition-all",
+                  )}
+                  href={item.url}
+                  title={item.extra?.hover}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {item.title}
+                </a>
+              )}
         </li>
       ))}
     </ol>

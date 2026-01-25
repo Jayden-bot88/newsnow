@@ -1,16 +1,18 @@
-import { useMemo } from "react"
-import { useMedia, useUpdateEffect } from "react-use"
+import { useEffect, useMemo } from "react"
+import { useMedia } from "react-use"
 
 export declare type ColorScheme = "dark" | "light" | "auto"
 
-const colorSchemeAtom = atomWithStorage("color-scheme", "dark")
+// Toutiao-style UI is light by default.
+const colorSchemeAtom = atomWithStorage("color-scheme", "light")
 
 export function useDark() {
   const [colorScheme, setColorScheme] = useAtom(colorSchemeAtom)
   const prefersDarkMode = useMedia("(prefers-color-scheme: dark)")
   const isDark = useMemo(() => colorScheme === "auto" ? prefersDarkMode : colorScheme === "dark", [colorScheme, prefersDarkMode])
 
-  useUpdateEffect(() => {
+  // Apply on mount so initial render matches persisted preference.
+  useEffect(() => {
     document.documentElement.classList.toggle("dark", isDark)
   }, [isDark])
 

@@ -11,14 +11,35 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
+import { Route as SearchImport } from './routes/search'
+import { Route as DetailImport } from './routes/detail'
 import { Route as IndexImport } from './routes/index'
+import { Route as ManageColumnImport } from './routes/manage.$column'
 import { Route as CColumnImport } from './routes/c.$column'
 
 // Create/Update Routes
 
+const SearchRoute = SearchImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const DetailRoute = DetailImport.update({
+  id: '/detail',
+  path: '/detail',
+  getParentRoute: () => rootRoute,
+} as any)
+
 const IndexRoute = IndexImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const ManageColumnRoute = ManageColumnImport.update({
+  id: '/manage/$column',
+  path: '/manage/$column',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -39,11 +60,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexImport
       parentRoute: typeof rootRoute
     }
+    '/detail': {
+      id: '/detail'
+      path: '/detail'
+      fullPath: '/detail'
+      preLoaderRoute: typeof DetailImport
+      parentRoute: typeof rootRoute
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchImport
+      parentRoute: typeof rootRoute
+    }
     '/c/$column': {
       id: '/c/$column'
       path: '/c/$column'
       fullPath: '/c/$column'
       preLoaderRoute: typeof CColumnImport
+      parentRoute: typeof rootRoute
+    }
+    '/manage/$column': {
+      id: '/manage/$column'
+      path: '/manage/$column'
+      fullPath: '/manage/$column'
+      preLoaderRoute: typeof ManageColumnImport
       parentRoute: typeof rootRoute
     }
   }
@@ -53,37 +95,58 @@ declare module '@tanstack/react-router' {
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/detail': typeof DetailRoute
+  '/search': typeof SearchRoute
   '/c/$column': typeof CColumnRoute
+  '/manage/$column': typeof ManageColumnRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/detail': typeof DetailRoute
+  '/search': typeof SearchRoute
   '/c/$column': typeof CColumnRoute
+  '/manage/$column': typeof ManageColumnRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
+  '/detail': typeof DetailRoute
+  '/search': typeof SearchRoute
   '/c/$column': typeof CColumnRoute
+  '/manage/$column': typeof ManageColumnRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/c/$column'
+  fullPaths: '/' | '/detail' | '/search' | '/c/$column' | '/manage/$column'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/c/$column'
-  id: '__root__' | '/' | '/c/$column'
+  to: '/' | '/detail' | '/search' | '/c/$column' | '/manage/$column'
+  id:
+    | '__root__'
+    | '/'
+    | '/detail'
+    | '/search'
+    | '/c/$column'
+    | '/manage/$column'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DetailRoute: typeof DetailRoute
+  SearchRoute: typeof SearchRoute
   CColumnRoute: typeof CColumnRoute
+  ManageColumnRoute: typeof ManageColumnRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DetailRoute: DetailRoute,
+  SearchRoute: SearchRoute,
   CColumnRoute: CColumnRoute,
+  ManageColumnRoute: ManageColumnRoute,
 }
 
 export const routeTree = rootRoute
@@ -97,14 +160,26 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/",
-        "/c/$column"
+        "/detail",
+        "/search",
+        "/c/$column",
+        "/manage/$column"
       ]
     },
     "/": {
       "filePath": "index.tsx"
     },
+    "/detail": {
+      "filePath": "detail.tsx"
+    },
+    "/search": {
+      "filePath": "search.tsx"
+    },
     "/c/$column": {
       "filePath": "c.$column.tsx"
+    },
+    "/manage/$column": {
+      "filePath": "manage.$column.tsx"
     }
   }
 }

@@ -9,6 +9,16 @@ body,
   padding: 0;
 }
 
+/* Hide scrollbars for horizontal tab scrollers on mobile */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 @font-face {
   font-family: 'Baloo 2';
   src: url("/Baloo2-Bold.subset.ttf");
@@ -20,10 +30,46 @@ html.dark {
 }
 
 body {
+  /* Toutiao-ish tokens */
+  --tt-bg: #f4f5f6;
+  --tt-card: #ffffff;
+  --tt-text: #222222;
+  --tt-subtext: #999999;
+  --tt-border: #e8e8e8;
+  --tt-red: #f85959;
+  --tt-search: #f2f3f5;
+  --tt-radius: 10px;
+  --tt-gap: 12px;
+  --tt-title-size: 17px;
+  --tt-title-line: 24px;
+  --tt-meta-size: 12px;
+  --tt-meta-line: 16px;
+
   --at-apply: color-base bg-base sprinkle-primary text-base;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
   -moz-user-select: none;
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* utilities */
+.tt-divider {
+  height: 1px;
+  background: var(--tt-border);
+  transform: scaleY(0.5);
+  transform-origin: 0 0;
+}
+
+.tt-link {
+  color: #1d7dd6;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.tt-link:active {
+  opacity: 0.7;
 }
 
 button:disabled {

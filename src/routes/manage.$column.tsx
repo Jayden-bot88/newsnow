@@ -1,14 +1,11 @@
 import { createFileRoute, redirect } from "@tanstack/react-router"
-import type { ColumnID } from "@shared/types"
-import { metadata } from "@shared/metadata"
 import { Column } from "~/components/column"
 
-export const Route = createFileRoute("/c/$column")({
-  component: SectionComponent,
+export const Route = createFileRoute("/manage/$column")({
+  component: ManageComponent,
   params: {
     parse: (params) => {
-      const key = params.column.toLowerCase()
-      const column = (Object.prototype.hasOwnProperty.call(metadata, key) ? key : undefined) as ColumnID | undefined
+      const column = fixedColumnIds.find(x => x === params.column.toLowerCase())
       if (!column) throw new Error(`"${params.column}" is not a valid column.`)
       return {
         column,
@@ -23,7 +20,14 @@ export const Route = createFileRoute("/c/$column")({
   },
 })
 
-function SectionComponent() {
+function ManageComponent() {
   const { column } = Route.useParams()
-  return <Column id={column} />
+  return (
+    <div className="bg-white">
+      <div className="px-3 py-2 text-[12px] color-neutral-500 border-b border-neutral-100">
+        管理来源（拖拽排序）
+      </div>
+      <Column id={column} variant="manage" />
+    </div>
+  )
 }
