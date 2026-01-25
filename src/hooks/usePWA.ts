@@ -4,9 +4,71 @@ import { useToast } from "./useToast"
 
 export function usePWA() {
   const toaster = useToast()
-  const { updateServiceWorker, needRefresh: [needRefresh] } = useRegisterSW()
+  const isLocalhost = typeof window !== "undefined"
+    && (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+
+  const LOCALHOST_SW_CLEARED_KEY = "pwa-localhost-sw-cleared"
+
+  // Avoid service worker caching in local production preview.
+  // It makes iterating/debugging confusing because old JS/CSS can be served from SW cache.
+  const { updateServiceWorker, needRefresh: [needRefresh] } = useRegisterSW({
+    immediate: !isLocalhost,
+    onRegisteredSW: isLocalhost
+      ? (_swUrl, registration) => {
+          void (async () => {
+            try {
+              await registration?.unregister()
+            } catch {
+              // ignore
+            }
+            try {
+              if ("serviceWorker" in navigator) {
+                const regs = await navigator.serviceWorker.getRegistrations()
+                await Promise.all(regs.map(r => r.unregister()))
+              }
+              if ("caches" in window) {
+                const keys = await caches.keys()
+                await Promise.all(keys.map(k => caches.delete(k)))
+              }
+            } catch {
+              // ignore
+            }
+          })()
+        }
+      : undefined,
+  })
 
   useMount(async () => {
+    if (isLocalhost) {
+      try {
+        const hadController = !!navigator.serviceWorker?.controller
+
+        const regs = "serviceWorker" in navigator
+          ? await navigator.serviceWorker.getRegistrations()
+          : []
+
+        const cacheKeys = "caches" in window ? await caches.keys() : []
+
+        const shouldReload = (hadController || regs.length > 0 || cacheKeys.length > 0)
+          && !sessionStorage.getItem(LOCALHOST_SW_CLEARED_KEY)
+
+        if ("serviceWorker" in navigator) {
+          await Promise.all(regs.map(r => r.unregister()))
+        }
+        if ("caches" in window) {
+          await Promise.all(cacheKeys.map(k => caches.delete(k)))
+        }
+
+        if (shouldReload) {
+          sessionStorage.setItem(LOCALHOST_SW_CLEARED_KEY, "1")
+          location.reload()
+        }
+      } catch {
+        // ignore
+      }
+      return
+    }
+
     const update = () => {
       updateServiceWorker().then(() => localStorage.setItem("updated", "1"))
     }
