@@ -1,5 +1,6 @@
 import type { SourceID, SourceResponse } from "@shared/types"
 import { getCacheTable } from "#/database/cache"
+import { withImages } from "#/utils/item-images"
 
 export default defineEventHandler(async (event) => {
   try {
@@ -12,7 +13,7 @@ export default defineEventHandler(async (event) => {
       return caches.map(cache => ({
         status: "cache",
         id: cache.id,
-        items: cache.items,
+        items: withImages(cache.items),
         updatedTime: now - cache.updated < sources[cache.id].interval ? now : cache.updated,
       })) as SourceResponse[]
     }

@@ -99,6 +99,9 @@ export interface NewsItem {
       url: string
       scale: number
     }
+
+    // Optional multi-image support for Toutiao-like cards.
+    images?: string[]
   }
 }
 

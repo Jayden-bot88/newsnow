@@ -6,6 +6,7 @@ export interface RSSInfo {
   link: string
   image: string
   updatedTime: string
+  category?: unknown
   items: RSSItem[]
 }
 export interface RSSItem {
@@ -13,6 +14,10 @@ export interface RSSItem {
   description: string
   link: string
   created?: string
+  enclosures?: unknown[]
+  content?: string
+  // Different RSS flavors can add arbitrary keys (itunes:*, media:*, etc.).
+  [key: string]: unknown
 }
 
 export interface CacheInfo {

@@ -1,5 +1,5 @@
 import { XMLParser } from "fast-xml-parser"
-import type { RSSInfo } from "../types"
+import type { RSSInfo, RSSItem } from "../types"
 
 export async function rss2json(url: string): Promise<RSSInfo | undefined> {
   if (!/^https?:\/\/[^\s$.?#].\S*/i.test(url)) return
@@ -17,7 +17,7 @@ export async function rss2json(url: string): Promise<RSSInfo | undefined> {
   let channel = result.rss && result.rss.channel ? result.rss.channel : result.feed
   if (Array.isArray(channel)) channel = channel[0]
 
-  const rss = {
+  const rss: RSSInfo = {
     title: channel.title ?? "",
     description: channel.description ?? "",
     link: channel.link && channel.link.href ? channel.link.href : channel.link,
@@ -34,7 +34,7 @@ export async function rss2json(url: string): Promise<RSSInfo | undefined> {
     const val = items[i]
     const media = {}
 
-    const obj = {
+    const obj: RSSItem & { enclosures: unknown[] } & Record<string, unknown> = {
       id: val.guid && val.guid.$text ? val.guid.$text : val.id,
       title: val.title && val.title.$text ? val.title.$text : val.title,
       description: val.summary && val.summary.$text ? val.summary.$text : val.description,
@@ -44,11 +44,22 @@ export async function rss2json(url: string): Promise<RSSInfo | undefined> {
       category: val.category || [],
       content: val.content && val.content.$text ? val.content.$text : val["content:encoded"],
       enclosures: val.enclosure ? (Array.isArray(val.enclosure) ? val.enclosure : [val.enclosure]) : [],
-    };
+    }
 
-    ["content:encoded", "podcast:transcript", "itunes:summary", "itunes:author", "itunes:explicit", "itunes:duration", "itunes:season", "itunes:episode", "itunes:episodeType", "itunes:image"].forEach((s) => {
-      // @ts-expect-error TODO
-      if (val[s]) obj[s.replace(":", "_")] = val[s]
+    const valAny = val as Record<string, unknown>
+    ;[
+      "content:encoded",
+      "podcast:transcript",
+      "itunes:summary",
+      "itunes:author",
+      "itunes:explicit",
+      "itunes:duration",
+      "itunes:season",
+      "itunes:episode",
+      "itunes:episodeType",
+      "itunes:image",
+    ].forEach((s) => {
+      if (valAny[s]) obj[s.replace(":", "_")] = valAny[s]
     })
 
     if (val["media:thumbnail"]) {
@@ -73,7 +84,6 @@ export async function rss2json(url: string): Promise<RSSInfo | undefined> {
 
     Object.assign(obj, { media })
 
-    // @ts-expect-error TODO
     rss.items.push(obj)
   }
 

@@ -2,6 +2,7 @@ import type { SourceID, SourceResponse } from "@shared/types"
 import { getters } from "#/getters"
 import { getCacheTable } from "#/database/cache"
 import type { CacheInfo } from "#/types"
+import { withImages } from "#/utils/item-images"
 
 export default defineEventHandler(async (event): Promise<SourceResponse> => {
   try {
@@ -31,7 +32,7 @@ export default defineEventHandler(async (event): Promise<SourceResponse> => {
             status: "success",
             id,
             updatedTime: now,
-            items: cache.items,
+            items: withImages(cache.items),
           }
         }
 
@@ -48,7 +49,7 @@ export default defineEventHandler(async (event): Promise<SourceResponse> => {
               status: "cache",
               id,
               updatedTime: cache.updated,
-              items: cache.items,
+              items: withImages(cache.items),
             }
           }
         }
@@ -56,7 +57,7 @@ export default defineEventHandler(async (event): Promise<SourceResponse> => {
     }
 
     try {
-      const newData = (await getters[id]()).slice(0, 30)
+      const newData = withImages((await getters[id]()).slice(0, 30))
       if (cacheTable && newData.length) {
         if (event.context.waitUntil) event.context.waitUntil(cacheTable.set(id, newData))
         else await cacheTable.set(id, newData)
@@ -74,7 +75,7 @@ export default defineEventHandler(async (event): Promise<SourceResponse> => {
           status: "cache",
           id,
           updatedTime: cache.updated,
-          items: cache.items,
+          items: withImages(cache.items),
         }
       } else {
         throw e
