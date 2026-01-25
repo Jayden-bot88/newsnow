@@ -10,6 +10,9 @@
 
 ## 功能特性
 - 优雅的阅读界面设计，实时获取最新热点新闻
+- 支持搜索页（热搜/历史/结果列表）
+- 支持“不感兴趣”隐藏内容（本地持久化）
+- 支持详情页正文抽取（尽力而为）与图片全屏预览
 - 支持 GitHub 登录及数据同步
 - 默认缓存时长为 30 分钟，登录用户可强制刷新获取最新数据
 - 根据内容源更新频率动态调整抓取间隔（最快每 2 分钟），避免频繁抓取导致 IP 被封禁
@@ -65,6 +68,15 @@ JWT_SECRET=
 INIT_TABLE=true
 # 是否启用缓存
 ENABLE_CACHE=true
+
+# 可选：限制 /api/detail 抓取域名（防 SSRF）。
+# 逗号分隔：精确域名（example.com）或后缀匹配（*.example.com, .example.com）
+DETAIL_ALLOWLIST=
+
+# 可选：/api/detail 基础防刷与资源限制
+# 设为 0 表示禁用。
+DETAIL_RATE_LIMIT_PER_MIN=30
+DETAIL_CACHE_MAX_ENTRIES=200
 ```
 
 ### 数据库支持

@@ -11,6 +11,9 @@ English | [简体中文](README.zh-CN.md) | [日本語](README.ja-JP.md)
 
 - Clean and elegant UI design for optimal reading experience
 - Real-time updates on trending news
+- Search page with hot searches and history
+- "Not interested" to hide items (persisted locally)
+- Article detail page with best-effort content extraction and full-screen image viewer
 - GitHub OAuth login with data synchronization
 - 30-minute default cache duration (logged-in users can force refresh)
 - Adaptive scraping interval (minimum 2 minutes) based on source update frequency to optimize resource usage and prevent IP bans
@@ -70,6 +73,15 @@ JWT_SECRET=
 INIT_TABLE=true
 # Whether to enable cache
 ENABLE_CACHE=true
+
+# Optional: restrict /api/detail scraping to specific domains.
+# Comma-separated host rules: exact (example.com) or suffix (*.example.com, .example.com)
+DETAIL_ALLOWLIST=
+
+# Optional: /api/detail basic abuse protection / resource bounds
+# Set to 0 to disable.
+DETAIL_RATE_LIMIT_PER_MIN=30
+DETAIL_CACHE_MAX_ENTRIES=200
 ```
 
 ### Database Support

@@ -33,8 +33,10 @@ const nitroOption: Parameters<typeof viteNitro>[0] = {
 }
 
 if (process.env.VERCEL) {
-  nitroOption.preset = "vercel-edge"
-  // You can use other online database, do it yourself. For more info: https://db0.unjs.io/connectors
+  // Use Node runtime on Vercel. Edge runtime is too limited for our scrapers.
+  nitroOption.preset = "vercel"
+  // You can use an online database, do it yourself. For more info: https://db0.unjs.io/connectors
+  // Default sqlite connectors are not suitable for serverless persistence.
   nitroOption.database = undefined
   // nitroOption.vercel = {
   //   config: {

@@ -53,20 +53,30 @@ export default defineEventHandler(async (event) => {
     .setProtectedHeader({ alg: "HS256" })
     .sign(new TextEncoder().encode(process.env.JWT_SECRET!))
 
-  // nitro 有 bug，在 cloudflare 里没法 set cookie
-  // seconds
-  // const maxAge = 60 * 24 * 60 * 60
-  // setCookie(event, "user_jwt", jwtToken, { maxAge })
-  // setCookie(event, "user_avatar", userInfo.avatar_url, { maxAge })
-  // setCookie(event, "user_name", userInfo.name, { maxAge })
-
-  const params = new URLSearchParams({
-    login: "github",
-    jwt: jwtToken,
-    user: JSON.stringify({
-      avatar: userInfo.avatar_url,
-      name: userInfo.name,
-    }),
-  })
-  return sendRedirect(event, `/?${params.toString()}`)
+  // Avoid leaking JWT via URL (history/logs/referrer). We return a tiny HTML page
+  // that persists auth into localStorage and then redirects.
+  const user = {
+    avatar: userInfo.avatar_url,
+    name: userInfo.name,
+  }
+  setResponseHeader(event, "content-type", "text/html; charset=utf-8")
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Signing in…</title>
+  </head>
+  <body>
+    <script>
+      try {
+        localStorage.setItem('jwt', ${JSON.stringify(jwtToken)});
+        localStorage.setItem('user', JSON.stringify(${JSON.stringify(user)}));
+      } catch (e) {
+        // best-effort
+      }
+      location.replace('/');
+    </script>
+  </body>
+</html>`
 })
