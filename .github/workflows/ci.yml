@@ -15,7 +15,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
+          # NOTE: setup-node's pnpm cache requires `pnpm` to already be on PATH.
+          # We enable Corepack (pnpm) in the next step, so caching here would fail.
 
       - name: Enable corepack
         run: corepack enable
