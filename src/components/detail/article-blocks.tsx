@@ -1,11 +1,15 @@
 import type { ReactNode } from "react"
 import { useMemo } from "react"
 
-type Block =
+import { SafeImage } from "~/components/common/safe-image"
+
+export type DetailBlock =
   | { type: "h2", text: string }
   | { type: "p", text: string }
   | { type: "ul", items: string[] }
   | { type: "quote", text: string }
+  | { type: "img", src: string, alt?: string }
+  | { type: "caption", text: string }
 
 const URL_RE = /https?:\/\/\S+/g
 
@@ -50,61 +54,70 @@ function linkify(text: string): ReactNode {
   return out
 }
 
-function blockKey(b: Block, i: number) {
+function blockKey(b: DetailBlock, i: number) {
+  if (b.type === "img") return `img:${b.src}`
   if (b.type === "ul") return `ul:${b.items[0] ?? i}`
   return `${b.type}:${b.text}`
 }
 
-function splitBlocks(raw: string): Block[] {
-  const parts = raw
-    .split(/\n{2,}/)
-    .map(s => s.trim())
-    .filter(Boolean)
+function clipBlocks(blocks: DetailBlock[], expanded: boolean, limitChars: number) {
+  if (expanded) return blocks
+  let remaining = limitChars
+  const out: DetailBlock[] = []
 
-  const blocks: Block[] = []
-  for (const part of parts) {
-    // bullet list
-    const lines = part.split(/\n/).map(s => s.trim()).filter(Boolean)
-    const bulletLines = lines.filter(s => /^[-*•]\s+/.test(s))
-    if (bulletLines.length >= 2 && bulletLines.length === lines.length) {
-      blocks.push({
-        type: "ul",
-        items: bulletLines.map(s => s.replace(/^[-*•]\s+/, "")),
-      })
+  for (const b of blocks) {
+    if (b.type === "img") {
+      out.push(b)
+      continue
+    }
+    if (b.type === "ul") {
+      const kept: string[] = []
+      for (const item of b.items) {
+        if (remaining <= 0) break
+        kept.push(item)
+        remaining -= item.length
+      }
+      if (kept.length) out.push({ type: "ul", items: kept })
+      if (remaining <= 0) break
       continue
     }
 
-    // quote
-    if (part.startsWith("\"") || part.startsWith("“") || part.startsWith(">")) {
-      blocks.push({ type: "quote", text: part.replace(/^>\s*/, "").trim() })
+    const text = b.text || ""
+    if (text.length <= remaining) {
+      out.push(b)
+      remaining -= text.length
       continue
     }
-
-    // heading heuristic
-    if (part.length <= 28 && /[：:]/.test(part)) {
-      blocks.push({ type: "h2", text: part })
-      continue
+    if (remaining > 0) {
+      const clippedText = `${text.slice(0, Math.max(0, remaining)).trim()}...`
+      if (b.type === "p") out.push({ type: "p", text: clippedText })
+      else if (b.type === "h2") out.push({ type: "h2", text: clippedText })
+      else if (b.type === "quote") out.push({ type: "quote", text: clippedText })
+      else if (b.type === "caption") out.push({ type: "caption", text: clippedText })
     }
-
-    blocks.push({ type: "p", text: part })
+    break
   }
-  return blocks
+  return out
 }
 
-export function ArticleBody({ text, expanded, limitChars = 900 }: { text: string, expanded: boolean, limitChars?: number }) {
-  const clipped = useMemo(() => {
-    if (expanded) return text
-    if (text.length <= limitChars) return text
-    return `${text.slice(0, limitChars).trim()}...`
-  }, [expanded, limitChars, text])
-
-  const blocks = useMemo(() => splitBlocks(clipped), [clipped])
+export function ArticleBlocks({
+  blocks,
+  expanded,
+  limitChars = 900,
+  onImage,
+}: {
+  blocks: DetailBlock[]
+  expanded: boolean
+  limitChars?: number
+  onImage: (src: string) => void
+}) {
+  const clipped = useMemo(() => clipBlocks(blocks, expanded, limitChars), [blocks, expanded, limitChars])
   return (
     <div className="text-[17px] leading-[28px] sm:(text-[18px] leading-[30px]) color-[var(--tt-text)] break-words">
-      {blocks.map((b, i) => {
+      {clipped.map((b, i) => {
         const key = blockKey(b, i)
         const isFirst = i === 0
-        const isLast = i === blocks.length - 1
+        const isLast = i === clipped.length - 1
         if (b.type === "h2") {
           return (
             <h2
@@ -151,6 +164,44 @@ export function ArticleBody({ text, expanded, limitChars = 900 }: { text: string
             </blockquote>
           )
         }
+        if (b.type === "caption") {
+          return (
+            <div
+              key={key}
+              className={$(
+                isFirst ? "mt-1" : "mt--3",
+                isLast ? "mb-0" : "mb-5",
+                "text-[13px] leading-[18px] color-[var(--tt-subtext)]",
+              )}
+            >
+              {linkify(b.text)}
+            </div>
+          )
+        }
+        if (b.type === "img") {
+          return (
+            <button
+              key={key}
+              type="button"
+              className={$(
+                "block w-full p-0 m-0 border-0 bg-transparent",
+                isFirst ? "mt-1" : "mt-0",
+                isLast ? "mb-0" : "mb-5",
+              )}
+              onClick={() => onImage(b.src)}
+              aria-label="查看正文图片"
+            >
+              <SafeImage
+                src={b.src}
+                alt={b.alt || ""}
+                className="w-full max-h-[360px] rounded-[10px] bg-[#f2f3f5] object-contain"
+                loading="lazy"
+                referrerPolicy="no-referrer"
+              />
+            </button>
+          )
+        }
+
         return (
           <p
             key={key}

@@ -1,15 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { useEffect, useMemo, useRef, useState } from "react"
-import type { NewsItem, SourceID } from "@shared/types"
+import type { SourceID } from "@shared/types"
 import { useToast } from "~/hooks/useToast"
 import { cacheSources } from "~/utils/data"
 import { ArticleBody } from "~/components/detail/article-body"
+import type { DetailBlock } from "~/components/detail/article-blocks"
+import { ArticleBlocks } from "~/components/detail/article-blocks"
 import { FeedCard } from "~/components/feed/feed-card"
 import { goToTopAtom } from "~/atoms"
 import { useIsMobile } from "~/hooks/useIsMobile"
+import { useScrollContainerEl } from "~/components/common/scroll-container"
 import { DetailComments } from "~/components/detail/comments"
 import { ImageViewer } from "~/components/detail/image-viewer"
+import { SafeImage } from "~/components/common/safe-image"
+import { StatusView } from "~/components/common/status-view"
 import { getVideoFromApi, getVideoFromDetailUrl, isVideoDetailUrl } from "~/utils/video"
+import { apiFetch } from "~/utils/apiFetch"
+import { getDetailToken } from "~/utils/detailToken"
 
 export const Route = createFileRoute("/detail")({
   component: DetailPage,
@@ -25,15 +32,44 @@ export const Route = createFileRoute("/detail")({
   },
 })
 
-function extractImages(item?: NewsItem): string[] {
-  const xs = Array.isArray(item?.extra?.images) ? item!.extra!.images! : []
-  const filtered = xs.filter((x): x is string => typeof x === "string" && /^https?:\/\//.test(x))
-  return Array.from(new Set(filtered)).slice(0, 3)
+function parseDetailBlocks(raw: unknown): DetailBlock[] {
+  const arr = Array.isArray(raw) ? raw : []
+  const out: DetailBlock[] = []
+  for (const v of arr) {
+    if (!v || typeof v !== "object") continue
+    const obj = v as Record<string, unknown>
+    const type = obj.type
+    if (typeof type !== "string") continue
+
+    if (type === "img") {
+      const src = obj.src
+      if (typeof src === "string" && /^https?:\/\//.test(src)) {
+        out.push({ type: "img", src, alt: typeof obj.alt === "string" ? obj.alt : undefined })
+      }
+      continue
+    }
+
+    if (type === "ul") {
+      const rawItems = Array.isArray(obj.items) ? obj.items : []
+      const items = rawItems.filter((x): x is string => typeof x === "string")
+      if (items.length) out.push({ type: "ul", items })
+      continue
+    }
+
+    const text = obj.text
+    if (typeof text !== "string" || !text.trim()) continue
+    if (type === "h2") out.push({ type: "h2", text })
+    else if (type === "quote") out.push({ type: "quote", text })
+    else if (type === "caption") out.push({ type: "caption", text })
+    else out.push({ type: "p", text })
+  }
+  return out
 }
 
 function DetailPage() {
   const { url, title, source, time, sid, iid } = Route.useSearch()
   const nav = Route.useNavigate()
+  const scroller = useScrollContainerEl()
   const timeForRelative = /^\d{10,13}$/.test(time) ? Number(time) : time
   const relative = useRelativeTime(timeForRelative || "")
   const toast = useToast()
@@ -46,12 +82,30 @@ function DetailPage() {
   const [viewerOpen, setViewerOpen] = useState(false)
   const [viewerIndex, setViewerIndex] = useState(0)
 
+  const goBack = useCallback(() => {
+    if (typeof window === "undefined") {
+      nav({ to: "/" })
+      return
+    }
+    // Prefer history back so the feed scroll position is preserved.
+    if (window.history.length > 1) {
+      window.history.back()
+      return
+    }
+    nav({ to: "/" })
+  }, [nav])
+
   const [contentLoading, setContentLoading] = useState(false)
   const [contentText, setContentText] = useState<string>("")
   const [contentDesc, setContentDesc] = useState<string>("")
   const [contentImages, setContentImages] = useState<string[]>([])
+  const [contentBlocks, setContentBlocks] = useState<DetailBlock[]>([])
   const [contentVideo, setContentVideo] = useState<{ kind: "iframe" | "video", src: string } | undefined>(undefined)
   const [slowFallback, setSlowFallback] = useState(false)
+  const [contentError, setContentError] = useState<string>("")
+  const [reloadKey, setReloadKey] = useState(0)
+
+  const cacheKey = useMemo(() => (url ? `tt-detail:${url}` : ""), [url])
 
   const item = useMemo(() => {
     if (!sid || !iid) return undefined
@@ -60,14 +114,26 @@ function DetailPage() {
     return items.find(x => String(x.id) === iid)
   }, [sid, iid])
 
-  const images = useMemo(() => extractImages(item), [item])
+  const inlineImages = useMemo(
+    () => {
+      const out: string[] = []
+      for (const b of contentBlocks) {
+        if (b.type !== "img") continue
+        if (typeof b.src === "string" && /^https?:\/\//.test(b.src)) out.push(b.src)
+      }
+      return Array.from(new Set(out))
+    },
+    [contentBlocks],
+  )
   const detailImages = useMemo(
     () => {
-      const raw = (contentImages.length ? contentImages : images)
+      // Policy A: only use images returned by /api/detail (or inline img blocks).
+      // Do not fall back to feed item images, as they can be inferred/guessed and become false positives.
+      const raw = (inlineImages.length ? inlineImages : contentImages)
         .filter((x): x is string => typeof x === "string" && /^https?:\/\//.test(x))
       return Array.from(new Set(raw))
     },
-    [contentImages, images],
+    [contentImages, inlineImages],
   )
   const summary = item?.extra?.hover || ""
 
@@ -77,8 +143,47 @@ function DetailPage() {
   )
 
   useEffect(() => {
+    // With a global scroll container, ensure detail always opens at top.
+    if (scroller) scroller.scrollTop = 0
+  }, [scroller, url])
+
+  useEffect(() => {
     let cancelled = false
     if (!url) return
+
+    setContentError("")
+
+    // Use cached content (best-effort) to improve perceived performance.
+    if (cacheKey) {
+      try {
+        const raw = sessionStorage.getItem(cacheKey)
+        if (raw) {
+          const parsed = JSON.parse(raw) as unknown
+          if (parsed && typeof parsed === "object") {
+            const p = parsed as {
+              text?: unknown
+              desc?: unknown
+              images?: unknown
+              blocks?: unknown
+              video?: unknown
+            }
+            const t = typeof p.text === "string" ? p.text : ""
+            const d = typeof p.desc === "string" ? p.desc : ""
+            const imgs = Array.isArray(p.images) ? p.images : []
+            const safeImgs = imgs.filter((x): x is string => typeof x === "string" && /^https?:\/\//.test(x))
+
+            const safeBlocks = parseDetailBlocks(p.blocks)
+
+            if (t && !contentText) setContentText(t)
+            if (d && !contentDesc) setContentDesc(d)
+            if (safeImgs.length && contentImages.length === 0) setContentImages(safeImgs)
+            if (safeBlocks.length && contentBlocks.length === 0) setContentBlocks(safeBlocks)
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
 
     // On weak networks, never block the UI on a long-running extraction.
     setSlowFallback(false)
@@ -88,16 +193,52 @@ function DetailPage() {
     }, 2500)
 
     setContentLoading(true)
-    myFetch(`/api/detail?url=${encodeURIComponent(url)}`)
+    Promise.resolve()
+      .then(async () => {
+        const token = await getDetailToken()
+        return await apiFetch(`/api/detail?url=${encodeURIComponent(url)}`, {
+          headers: token ? { "X-Detail-Token": token } : undefined,
+        })
+      })
       .then((res: any) => {
         if (cancelled) return
-        setContentText(typeof res?.text === "string" ? res.text : "")
-        setContentDesc(typeof res?.desc === "string" ? res.desc : "")
-        setContentImages(Array.isArray(res?.images) ? res.images : [])
-        setContentVideo(getVideoFromApi(res))
+        const nextText = typeof res?.text === "string" ? res.text : ""
+        const nextDesc = typeof res?.desc === "string" ? res.desc : ""
+        const nextImages = Array.isArray(res?.images) ? res.images : []
+        const nextBlocks = parseDetailBlocks(res?.blocks)
+        const nextVideo = getVideoFromApi(res)
+        setContentText(nextText)
+        setContentDesc(nextDesc)
+        setContentImages(nextImages)
+        setContentBlocks(nextBlocks)
+        setContentVideo(nextVideo)
+
+        if (cacheKey) {
+          try {
+            sessionStorage.setItem(cacheKey, JSON.stringify({
+              text: nextText,
+              desc: nextDesc,
+              images: nextImages,
+              blocks: nextBlocks,
+              video: nextVideo,
+            }))
+          } catch {
+            // ignore
+          }
+        }
       })
-      .catch(() => {
-        // Best-effort only.
+      .catch((err: unknown) => {
+        if (cancelled) return
+        const offline = typeof navigator !== "undefined" && "onLine" in navigator && navigator.onLine === false
+        if (offline) {
+          setContentError("网络不可用")
+          return
+        }
+        if (err instanceof Error && err.message) {
+          setContentError(err.message)
+          return
+        }
+        setContentError("正文加载失败")
       })
       .finally(() => {
         if (!cancelled) setContentLoading(false)
@@ -106,7 +247,7 @@ function DetailPage() {
       cancelled = true
       clearTimeout(slowTimer)
     }
-  }, [url])
+  }, [cacheKey, contentBlocks.length, contentDesc, contentImages.length, contentText, reloadKey, url])
 
   const canExpand = contentText.length > 900
   const isVideoDetail = !!video || (url ? isVideoDetailUrl(url) : false)
@@ -125,7 +266,7 @@ function DetailPage() {
         <button
           type="button"
           className="i-ph:caret-left-duotone text-2xl color-neutral-800"
-          onClick={() => nav({ to: "/" })}
+          onClick={goBack}
           aria-label="Back"
         />
         <button
@@ -230,7 +371,7 @@ function DetailPage() {
           </div>
         )}
 
-        {!!detailImages.length && !isVideoDetail && (
+        {!!detailImages.length && !isVideoDetail && inlineImages.length === 0 && (
           <div className="px-[var(--tt-gap)] mt-3">
             {detailImages.length >= 3
               ? (
@@ -246,7 +387,7 @@ function DetailPage() {
                         }}
                         aria-label="查看图片"
                       >
-                        <img
+                        <SafeImage
                           src={src}
                           alt=""
                           className="w-full h-[86px] rounded-[6px] bg-[#f2f3f5] object-cover"
@@ -267,7 +408,7 @@ function DetailPage() {
                     }}
                     aria-label="查看图片"
                   >
-                    <img
+                    <SafeImage
                       src={detailImages[0]}
                       alt=""
                       className="w-full h-[190px] rounded-[10px] bg-[#f2f3f5] object-cover"
@@ -295,9 +436,60 @@ function DetailPage() {
             </div>
           )}
 
+          {!contentLoading && !contentText && !isVideoDetail && contentError && (
+            <StatusView
+              tone="error"
+              title="正文加载失败"
+              desc={contentError}
+              action={(
+                <button
+                  type="button"
+                  className="h-9 px-4 rounded-full bg-neutral-100 text-[13px] font-semibold color-[var(--tt-text)] active:bg-neutral-200"
+                  onClick={() => setReloadKey(x => x + 1)}
+                >
+                  重试
+                </button>
+              )}
+            />
+          )}
+
+          {!contentLoading && !contentText && !isVideoDetail && !contentError && !!contentDesc && (
+            <StatusView
+              tone="warning"
+              title="暂无正文"
+              desc={contentDesc}
+              action={url
+                ? (
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center h-9 px-4 rounded-full bg-neutral-100 text-[13px] font-semibold color-[var(--tt-text)] active:bg-neutral-200"
+                    >
+                      打开原文
+                    </a>
+                  )
+                : undefined}
+            />
+          )}
+
           {!!contentText && !isVideoDetail && (
             <div className="relative">
-              <ArticleBody text={contentText} expanded={expanded} />
+              {contentBlocks.length
+                ? (
+                    <ArticleBlocks
+                      blocks={contentBlocks}
+                      expanded={expanded}
+                      onImage={(src) => {
+                        const idx = detailImages.indexOf(src)
+                        setViewerIndex(Math.max(0, idx))
+                        setViewerOpen(true)
+                      }}
+                    />
+                  )
+                : (
+                    <ArticleBody text={contentText} expanded={expanded} />
+                  )}
               {!expanded && canExpand && (
                 <div
                   className="pointer-events-none absolute left-0 right-0 bottom-0 h-16"
