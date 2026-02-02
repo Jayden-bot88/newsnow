@@ -1,6 +1,6 @@
 import { Buffer } from "node:buffer"
 import process from "node:process"
-import { createError, defineEventHandler, getHeader, getHeaders, getQuery } from "h3"
+import { createError, defineEventHandler, getHeader, getHeaders, getQuery, setResponseHeader } from "h3"
 import { load } from "cheerio"
 import iconv from "iconv-lite"
 import { extractBilibiliDesc, extractVideo, parseWallstreetcnArticlePayload, parseWallstreetcnLivePayload } from "../utils/detail-extract"

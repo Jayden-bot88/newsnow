@@ -1,5 +1,6 @@
 import process from "node:process"
 
+import { createError, defineEventHandler, getHeaders } from "h3"
 import { getRateLimitTable } from "#/database/rate-limit"
 import { signDetailPublicToken } from "#/utils/detail-public-token"
 
