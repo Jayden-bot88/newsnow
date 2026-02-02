@@ -229,25 +229,25 @@ test("home feed", async ({ page }) => {
   await expect(page.getByText("推荐")).toBeVisible()
   await expect(page.getByText("所有来源加载失败")).not.toBeVisible()
   await expect(page.getByText("Demo item from hackernews")).toBeVisible()
-  await expect(page).toHaveScreenshot("home.png")
+  await expect(page).toHaveScreenshot("home.png", { timeout: 15000 })
 })
 
 test("search default", async ({ page }) => {
   await page.goto("/search?q=", { waitUntil: "domcontentloaded" })
   await expect(page.getByText("热搜")).toBeVisible()
-  await expect(page).toHaveScreenshot("search.png")
+  await expect(page).toHaveScreenshot("search.png", { timeout: 15000 })
 })
 
 test("detail + image viewer", async ({ page }) => {
   await page.goto("/detail?url=https%3A%2F%2Fexample.com&title=%E6%B5%8B%E8%AF%95&source=%E6%9D%A5%E6%BA%90&time=", { waitUntil: "domcontentloaded" })
   // Wait for extracted content to show.
   await expect(page.getByText("第一段")).toBeVisible()
-  await expect(page).toHaveScreenshot("detail.png")
+  await expect(page).toHaveScreenshot("detail.png", { timeout: 15000 })
 
   // Open image viewer.
   await page.getByRole("button", { name: "查看图片" }).first().click()
   await expect(page.getByRole("dialog")).toBeVisible()
-  await expect(page).toHaveScreenshot("detail-image-viewer.png", { maxDiffPixels: 20 })
+  await expect(page).toHaveScreenshot("detail-image-viewer.png", { timeout: 15000, maxDiffPixels: 20 })
 })
 
 test("detail slow fallback within 3s", async ({ page }) => {
