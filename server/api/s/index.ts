@@ -1,20 +1,25 @@
 import type { SourceID, SourceResponse } from "@shared/types"
+import { TTL } from "@shared/consts"
+import { sources } from "@shared/sources"
+import { createError, defineEventHandler, getQuery } from "h3"
 import { getters } from "#/getters"
 import { getCacheTable } from "#/database/cache"
 import type { CacheInfo } from "#/types"
 import { withImages } from "#/utils/item-images"
+import { logger } from "#/utils/logger"
 
 export default defineEventHandler(async (event): Promise<SourceResponse> => {
   try {
-    const query = getQuery(event)
+    const query = getQuery(event) as Record<string, unknown>
     const latest = query.latest !== undefined && query.latest !== "false"
-    let id = query.id as SourceID
-    const isValid = (id: SourceID) => !id || !sources[id] || !getters[id]
+    const idRaw = typeof query.id === "string" ? query.id : ""
+    let id = idRaw as SourceID
+    const isValid = (sid: SourceID) => Boolean(sid && sources[sid] && getters[sid])
 
-    if (isValid(id)) {
+    if (!isValid(id)) {
       const redirectID = sources?.[id]?.redirect
       if (redirectID) id = redirectID
-      if (isValid(id)) throw new Error("Invalid source id")
+      if (!isValid(id)) throw new Error("Invalid source id")
     }
 
     const cacheTable = await getCacheTable()

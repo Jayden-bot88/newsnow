@@ -1,6 +1,8 @@
 import process from "node:process"
 import { SignJWT } from "jose"
+import { defineEventHandler, getQuery, setResponseHeader } from "h3"
 import { UserTable } from "#/database/user"
+import { myFetch } from "#/utils/fetch"
 
 export default defineEventHandler(async (event) => {
   const db = useDatabase()

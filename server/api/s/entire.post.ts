@@ -1,4 +1,6 @@
 import type { SourceID, SourceResponse } from "@shared/types"
+import { sources } from "@shared/sources"
+import { defineEventHandler, readBody } from "h3"
 import { getCacheTable } from "#/database/cache"
 import { withImages } from "#/utils/item-images"
 
