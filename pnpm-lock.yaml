@@ -12,6 +12,7 @@ overrides:
   react: ^19
   db0: ^0.3.1
   vite: ^6
+  vite-plugin-with-nitro>h3: 1.15.3
 
 patchedDependencies:
   dayjs:
@@ -4434,15 +4435,6 @@ packages:
     resolution: {integrity: sha512-O1Ld7Dr+nqPnmGpdhzLmMTQ4vAsD+rHwMm1NLUmoUFFymBOMKxCCrtDxqdBRYXdeEPEi3SyoR4TizJLQrnKBNA==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
-  h3-nightly@2.0.0-20260123-202450-f6f152a:
-    resolution: {integrity: sha512-56LSTO4z1deNMBbFKuyPD2oGuDb5cdY5oauaouEprGaE8wr3SYM3Il5m1P/GUD/Zi+RVXr/F/biMFOd6QsHtIg==}
-    engines: {node: '>=20.11.1'}
-    peerDependencies:
-      crossws: ^0.4.1
-    peerDependenciesMeta:
-      crossws:
-        optional: true
-
   h3@1.15.3:
     resolution: {integrity: sha512-z6GknHqyX0h9aQaTx22VZDf6QyZn+0Nh+Ym8O/u0SGSkyF5cuTJYKlc8MkzW3Nzf9LE1ivcpmYC3FUGpywhuUQ==}
 
@@ -6013,9 +6005,6 @@ packages:
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
     hasBin: true
 
-  rou3@0.7.12:
-    resolution: {integrity: sha512-iFE4hLDuloSWcD7mjdCDhx2bKcIsYbtOTpfH5MHHLSKMOUyjqQXTeZVa289uuwEGEKFoE/BAPbhaU4B774nceg==}
-
   router@2.2.0:
     resolution: {integrity: sha512-nLTrUKm2UyiL7rlhapu/Zl45FwNgkZGaCpZbIHajDYgwlJCOzLSk+cIPAnsEqV955GjILJnKbdQC1nVPz+gAYQ==}
     engines: {node: '>= 18'}
@@ -6256,11 +6245,6 @@ packages:
   sqlstring@2.3.3:
     resolution: {integrity: sha512-qC9iz2FlN7DQl3+wjwn3802RTyjCx7sDvfQEXchwa6CWOx07/WVfh91gBmQ9fahw8snwGEWU3xGzOt4tFyHLxg==}
     engines: {node: '>= 0.6'}
-
-  srvx@0.10.1:
-    resolution: {integrity: sha512-A//xtfak4eESMWWydSRFUVvCTQbSwivnGCEf8YGPe2eHU0+Z6znfUTCPF0a7oV3sObSOcrXHlL6Bs9vVctfXdg==}
-    engines: {node: '>=20.16.0'}
-    hasBin: true
 
   stable-hash@0.0.5:
     resolution: {integrity: sha512-+L3ccpzibovGXFK+Ap/f8LOS0ahMrHTf3xu7mMLSpEGU0EO9ucaysSylKo9eRDFNhWve/y275iPmIZ4z39a9iA==}
@@ -11891,11 +11875,6 @@ snapshots:
     dependencies:
       duplexer: 0.1.2
 
-  h3-nightly@2.0.0-20260123-202450-f6f152a:
-    dependencies:
-      rou3: 0.7.12
-      srvx: 0.10.1
-
   h3@1.15.3:
     dependencies:
       cookie-es: 1.2.2
@@ -13572,8 +13551,6 @@ snapshots:
       '@rollup/rollup-win32-x64-msvc': 4.40.2
       fsevents: 2.3.3
 
-  rou3@0.7.12: {}
-
   router@2.2.0:
     dependencies:
       debug: 4.4.0
@@ -13860,8 +13837,6 @@ snapshots:
 
   sqlstring@2.3.3:
     optional: true
-
-  srvx@0.10.1: {}
 
   stable-hash@0.0.5: {}
 
@@ -14538,7 +14513,7 @@ snapshots:
     dependencies:
       consola: 3.4.2
       defu: 6.1.4
-      h3: h3-nightly@2.0.0-20260123-202450-f6f152a
+      h3: 1.15.3
       nitropack: nitro-go@0.0.3(@libsql/client@0.15.4)(better-sqlite3@11.10.0)(mysql2@3.14.3)
       vite: 6.3.5(@types/node@22.15.17)(jiti@2.4.2)(terser@5.39.0)(tsx@4.19.4)(yaml@2.7.1)
     transitivePeerDependencies:
@@ -14559,7 +14534,6 @@ snapshots:
       - '@vercel/kv'
       - aws4fetch
       - better-sqlite3
-      - crossws
       - drizzle-orm
       - encoding
       - idb-keyval

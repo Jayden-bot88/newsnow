@@ -16,3 +16,17 @@ package-lock.json
 .specstory/
 playwright-report/
 test-results/
+
+# Local artifacts/logs
+artifacts/
+.logs/
+.DS_Store
+
+# Local command logs
+.dev.log
+.start.log
+.smoke-server.log
+
+# Local screenshots
+screenshots/local-mobile/
+.env*.local
