@@ -19,6 +19,8 @@ function iconToUrl(icon: NewsItem["extra"] extends infer E
 }
 
 function looksLikeImage(url: string) {
+  // Weibo flags are badges, not content images.
+  if (/simg\.s\.weibo\.com\/moter\/flags\//i.test(url)) return false
   if (/\.(?:png|jpe?g|webp|gif)(?:\?|$)/i.test(url)) return true
   if (/thumbnail|thumb|cover|pic|image/i.test(url)) return true
   // some sources (e.g. bilibili) use CDN without extensions

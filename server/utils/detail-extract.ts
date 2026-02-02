@@ -1,8 +1,23 @@
+import { load } from "cheerio"
 import type { CheerioAPI } from "cheerio"
 
 export interface DetailVideo {
   type: "iframe" | "file" | "hls"
   url: string
+}
+
+export interface WallstreetcnArticle {
+  title?: string
+  desc?: string
+  text?: string
+  images?: string[]
+}
+
+export interface WallstreetcnLive {
+  title?: string
+  desc?: string
+  text?: string
+  images?: string[]
 }
 
 function isHttpUrl(url: string) {
@@ -14,6 +29,176 @@ function resolveUrl(base: string, maybe: string) {
     return new URL(maybe, base).toString()
   } catch {
     return undefined
+  }
+}
+
+export function parseWallstreetcnArticlePayload(payload: unknown): WallstreetcnArticle {
+  if (!payload || typeof payload !== "object") return {}
+  const p = payload as any
+  const title = typeof p.title === "string" ? p.title.trim() : undefined
+  const content = typeof p.content === "string" ? p.content : ""
+  const contentShort = typeof p.content_short === "string" ? p.content_short.trim() : ""
+
+  const extractBlocksFromHtml = (html: string) => {
+    if (!html) return []
+    const $ = load(html)
+    $("script,style,noscript").remove()
+    $("br").replaceWith("\n")
+
+    const blocks: string[] = []
+    const elements = $("p,h2,h3,h4,blockquote,ul,ol").toArray()
+    for (const el of elements) {
+      const tag = (el as any).name as string | undefined
+      if (tag === "ul" || tag === "ol") {
+        const items = $(el)
+          .find("li")
+          .toArray()
+          .map(li => $(li).text())
+          .map(s => s.replace(/\s+/g, " ").trim())
+          .filter(Boolean)
+        if (items.length >= 2) {
+          blocks.push(items.map(x => `- ${x}`).join("\n"))
+        } else if (items.length === 1) {
+          blocks.push(items[0]!)
+        }
+        continue
+      }
+      blocks.push($(el).text())
+    }
+
+    if (!blocks.length) {
+      blocks.push($.root().text())
+    }
+
+    return blocks
+      .map((s) => {
+        return String(s)
+          .replace(/\r/g, "")
+          .replace(/[ \t]+\n/g, "\n")
+          .replace(/\n[ \t]+/g, "\n")
+          .replace(/[ \t]{2,}/g, " ")
+          .replace(/\n{3,}/g, "\n\n")
+          .trim()
+      })
+      .filter(Boolean)
+  }
+
+  const blocks = extractBlocksFromHtml(content)
+  let text = blocks.length ? blocks.join("\n\n") : undefined
+
+  const promoKeywords = [
+    "今日见闻专享",
+    "见闻专享",
+    "见闻历",
+    "多购多惠",
+    "划算到爆",
+    "亲友互赠",
+    "自留收藏",
+    "大师课",
+  ]
+
+  const isTopAdLine = (line: string) => {
+    const normalized = line.replace(/\s+/g, "").toLowerCase()
+    if (!normalized) return false
+
+    // Common top-of-article promo for app upgrade / download.
+    if (/^(?:请|点击|扫码)/.test(line) && /\bapp\b|最新版app/i.test(line)) {
+      if (/升级|下载|安装|打开|收听|订阅|开通|购买|领取/.test(line)) return true
+      if (/见闻|华尔街见闻/.test(line)) return true
+    }
+
+    if (/(?:升级|下载|安装|打开).{0,12}(?:见闻|华尔街见闻).{0,12}app/.test(normalized)) return true
+    if (/(?:见闻|华尔街见闻).{0,12}app.{0,12}(?:升级|下载|安装|打开)/.test(normalized)) return true
+    return false
+  }
+
+  const isPunctuationOnly = (line: string) => {
+    const trimmed = line.trim()
+    if (!trimmed) return false
+    return /^[,.;:!?，。！？；：、]+$/.test(trimmed)
+  }
+
+  if (text) {
+    let skipping = false
+    const kept: string[] = []
+    const rawLines = text.split(/\n+/).map((s: string) => s.trim()).filter(Boolean)
+
+    // Merge punctuation-only fragments back into the previous line.
+    const mergedLines: string[] = []
+    for (const line of rawLines) {
+      if (isPunctuationOnly(line) && mergedLines.length) {
+        mergedLines[mergedLines.length - 1] = `${mergedLines[mergedLines.length - 1]}${line}`
+        continue
+      }
+      mergedLines.push(line)
+    }
+
+    const lines = mergedLines.filter((line: string, idx: number) => {
+      // WallstreetCN top promo is usually within first few blocks.
+      if (idx >= 6) return true
+      return !isTopAdLine(line)
+    })
+
+    for (const line of lines) {
+      if (!skipping && promoKeywords.some(k => line.includes(k))) {
+        skipping = true
+        continue
+      }
+
+      if (skipping) {
+        // Stop skipping at the next major section heading.
+        if (/^(?:经济指标|经济数据|产业大会|公司财报|重点关注|今日焦点|财经日历)$/.test(line)) {
+          skipping = false
+          kept.push(line)
+        }
+        continue
+      }
+
+      // Also drop standalone promo lines even if not in a block.
+      if (promoKeywords.some(k => line.includes(k))) {
+        continue
+      }
+
+      kept.push(line)
+    }
+
+    text = kept.join("\n\n").trim() || undefined
+  }
+  // WallstreetCN images are frequently promo banners; keep body text only.
+  const images: string[] = []
+
+  return {
+    title,
+    desc: contentShort || undefined,
+    text,
+    images,
+  }
+}
+
+export function parseWallstreetcnLivePayload(payload: unknown): WallstreetcnLive {
+  if (!payload || typeof payload !== "object") return {}
+  const p = payload as any
+  const title = typeof p.title === "string" ? p.title.trim() : undefined
+  const contentText = typeof p.content_text === "string" ? p.content_text.trim() : ""
+  const content = typeof p.content === "string" ? p.content : ""
+
+  const text = (contentText || content)
+    .replace(/\n{3,}/g, "\n\n")
+    .trim() || undefined
+
+  const imagesFromPayload = Array.isArray(p.images)
+    ? p.images
+        .map((x: any) => (typeof x === "string" ? x : (typeof x?.url === "string" ? x.url : undefined)))
+        .filter((x: any): x is string => typeof x === "string" && /^https?:\/\//.test(x))
+    : []
+
+  const images = Array.from(new Set<string>(imagesFromPayload)).slice(0, 3)
+
+  return {
+    title,
+    desc: text,
+    text,
+    images,
   }
 }
 
