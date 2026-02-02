@@ -1,4 +1,9 @@
 import type { ColumnID, FixedColumnID, SourceID } from "@shared/types"
+import { fixedColumnIds, metadata } from "@shared/metadata"
+import { atom } from "jotai"
+import { atomWithStorage } from "jotai/utils"
+
+import { primitiveMetadataAtom } from "./primitiveMetadataAtom"
 import type { Update } from "./types"
 
 // Global kill-switch for problematic sources.
