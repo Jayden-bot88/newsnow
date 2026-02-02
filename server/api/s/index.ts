@@ -78,7 +78,15 @@ export default defineEventHandler(async (event): Promise<SourceResponse> => {
           items: withImages(cache.items),
         }
       } else {
-        throw e
+        // For v1 stability: never 500 a single source fetch.
+        // Return an empty payload so the client can keep rendering.
+        logger.error(e)
+        return {
+          status: "success",
+          id,
+          updatedTime: now,
+          items: [],
+        }
       }
     }
   } catch (e: any) {
