@@ -19,6 +19,13 @@ declare global {
   // Nitro provides a global $fetch.
   const $fetch: typeof import("ofetch").$fetch
 
+  // Server auto-imports from `server/utils/*`.
+  const defineSource: typeof import("./utils/source").defineSource
+  const myFetch: typeof import("./utils/fetch").myFetch
+  const parseRelativeDate: typeof import("./utils/date").parseRelativeDate
+  const md5: typeof import("./utils/crypto").md5
+  const myCrypto: typeof import("./utils/crypto").myCrypto
+
   // Provided by Nitro database integration (db0).
   const useDatabase: () => Database
 
