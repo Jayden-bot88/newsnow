@@ -1,3 +1,5 @@
+import { defineRSSSource, defineSource } from "#/utils/source"
+
 export default defineSource({
   "pcbeta-windows11": defineRSSSource("https://bbs.pcbeta.com/forum.php?mod=rss&fid=563&auth=0"),
 })

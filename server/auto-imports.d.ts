@@ -23,8 +23,11 @@ declare global {
   const defineSource: typeof import("./utils/source").defineSource
   const myFetch: typeof import("./utils/fetch").myFetch
   const parseRelativeDate: typeof import("./utils/date").parseRelativeDate
+  const tranformToUTC: typeof import("./utils/date").tranformToUTC
   const md5: typeof import("./utils/crypto").md5
   const myCrypto: typeof import("./utils/crypto").myCrypto
+  const rss2json: typeof import("./utils/rss2json").rss2json
+  const defineRSSSource: typeof import("./utils/source").defineRSSSource
 
   // Provided by Nitro database integration (db0).
   const useDatabase: () => Database

@@ -1,6 +1,10 @@
 import process from "node:process"
 import type { AllSourceID } from "@shared/types"
 import defu from "defu"
+
+import { myFetch } from "./fetch"
+import { rss2json } from "./rss2json"
+
 import type { RSSHubOption, RSSHubInfo as RSSHubResponse, SourceGetter, SourceOption } from "#/types"
 
 function extractHttpImages(xs: unknown[]): string[] {
