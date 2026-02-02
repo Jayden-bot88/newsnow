@@ -6,6 +6,8 @@ import { useWindowSize } from "react-use"
 import { forwardRef, useImperativeHandle } from "react"
 import { OverlayScrollbar } from "../common/overlay-scrollbar"
 import { safeParseString } from "~/utils"
+import { apiFetch } from "~/utils/apiFetch"
+import { SafeImage } from "~/components/common/safe-image"
 
 export interface ItemsProps extends React.HTMLAttributes<HTMLDivElement> {
   id: SourceID
@@ -70,9 +72,7 @@ function NewsCard({ id, setHandleRef }: NewsCardProps) {
         return cacheSources.get(id)
       }
 
-      const response: SourceResponse = await myFetch(url, {
-        headers,
-      })
+      const response = await apiFetch<SourceResponse>(url, { headers })
 
       function diff() {
         try {
@@ -210,14 +210,19 @@ function ExtraInfo({ item }: { item: NewsItem }) {
   if (item?.extra?.icon) {
     const { url, scale } = typeof item.extra.icon === "string" ? { url: item.extra.icon, scale: undefined } : item.extra.icon
     return (
-      <img
+      <SafeImage
         src={url}
         style={{
           transform: `scale(${scale ?? 1})`,
         }}
         className="h-4 inline mt--1"
         referrerPolicy="no-referrer"
-        onError={e => e.currentTarget.style.display = "none"}
+        fallbackStyle={{
+          width: "1rem",
+          height: "1rem",
+          display: "inline-block",
+          verticalAlign: "middle",
+        }}
       />
     )
   }

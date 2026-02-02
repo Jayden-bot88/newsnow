@@ -11,13 +11,20 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
+import { Route as SettingsImport } from './routes/settings'
 import { Route as SearchImport } from './routes/search'
 import { Route as DetailImport } from './routes/detail'
+import { Route as ChannelsImport } from './routes/channels'
 import { Route as IndexImport } from './routes/index'
-import { Route as ManageColumnImport } from './routes/manage.$column'
 import { Route as CColumnImport } from './routes/c.$column'
 
 // Create/Update Routes
+
+const SettingsRoute = SettingsImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const SearchRoute = SearchImport.update({
   id: '/search',
@@ -31,15 +38,15 @@ const DetailRoute = DetailImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-const IndexRoute = IndexImport.update({
-  id: '/',
-  path: '/',
+const ChannelsRoute = ChannelsImport.update({
+  id: '/channels',
+  path: '/channels',
   getParentRoute: () => rootRoute,
 } as any)
 
-const ManageColumnRoute = ManageColumnImport.update({
-  id: '/manage/$column',
-  path: '/manage/$column',
+const IndexRoute = IndexImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -60,6 +67,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexImport
       parentRoute: typeof rootRoute
     }
+    '/channels': {
+      id: '/channels'
+      path: '/channels'
+      fullPath: '/channels'
+      preLoaderRoute: typeof ChannelsImport
+      parentRoute: typeof rootRoute
+    }
     '/detail': {
       id: '/detail'
       path: '/detail'
@@ -74,18 +88,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SearchImport
       parentRoute: typeof rootRoute
     }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsImport
+      parentRoute: typeof rootRoute
+    }
     '/c/$column': {
       id: '/c/$column'
       path: '/c/$column'
       fullPath: '/c/$column'
       preLoaderRoute: typeof CColumnImport
-      parentRoute: typeof rootRoute
-    }
-    '/manage/$column': {
-      id: '/manage/$column'
-      path: '/manage/$column'
-      fullPath: '/manage/$column'
-      preLoaderRoute: typeof ManageColumnImport
       parentRoute: typeof rootRoute
     }
   }
@@ -95,58 +109,70 @@ declare module '@tanstack/react-router' {
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/channels': typeof ChannelsRoute
   '/detail': typeof DetailRoute
   '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
   '/c/$column': typeof CColumnRoute
-  '/manage/$column': typeof ManageColumnRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/channels': typeof ChannelsRoute
   '/detail': typeof DetailRoute
   '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
   '/c/$column': typeof CColumnRoute
-  '/manage/$column': typeof ManageColumnRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
+  '/channels': typeof ChannelsRoute
   '/detail': typeof DetailRoute
   '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
   '/c/$column': typeof CColumnRoute
-  '/manage/$column': typeof ManageColumnRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/detail' | '/search' | '/c/$column' | '/manage/$column'
+  fullPaths:
+    | '/'
+    | '/channels'
+    | '/detail'
+    | '/search'
+    | '/settings'
+    | '/c/$column'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/detail' | '/search' | '/c/$column' | '/manage/$column'
+  to: '/' | '/channels' | '/detail' | '/search' | '/settings' | '/c/$column'
   id:
     | '__root__'
     | '/'
+    | '/channels'
     | '/detail'
     | '/search'
+    | '/settings'
     | '/c/$column'
-    | '/manage/$column'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ChannelsRoute: typeof ChannelsRoute
   DetailRoute: typeof DetailRoute
   SearchRoute: typeof SearchRoute
+  SettingsRoute: typeof SettingsRoute
   CColumnRoute: typeof CColumnRoute
-  ManageColumnRoute: typeof ManageColumnRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ChannelsRoute: ChannelsRoute,
   DetailRoute: DetailRoute,
   SearchRoute: SearchRoute,
+  SettingsRoute: SettingsRoute,
   CColumnRoute: CColumnRoute,
-  ManageColumnRoute: ManageColumnRoute,
 }
 
 export const routeTree = rootRoute
@@ -160,14 +186,18 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/",
+        "/channels",
         "/detail",
         "/search",
-        "/c/$column",
-        "/manage/$column"
+        "/settings",
+        "/c/$column"
       ]
     },
     "/": {
       "filePath": "index.tsx"
+    },
+    "/channels": {
+      "filePath": "channels.tsx"
     },
     "/detail": {
       "filePath": "detail.tsx"
@@ -175,11 +205,11 @@ export const routeTree = rootRoute
     "/search": {
       "filePath": "search.tsx"
     },
+    "/settings": {
+      "filePath": "settings.tsx"
+    },
     "/c/$column": {
       "filePath": "c.$column.tsx"
-    },
-    "/manage/$column": {
-      "filePath": "manage.$column.tsx"
     }
   }
 }

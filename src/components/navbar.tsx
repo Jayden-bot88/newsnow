@@ -1,39 +1,38 @@
 import type { ColumnID } from "@shared/types"
-import { fixedColumnIds, metadata } from "@shared/metadata"
-import { Link, useNavigate } from "@tanstack/react-router"
+import { metadata } from "@shared/metadata"
+import { Link } from "@tanstack/react-router"
 import { useIsMobile } from "~/hooks/useIsMobile"
-import { currentColumnIDAtom } from "~/atoms"
+import { currentColumnIDAtom, enabledColumnsAtom } from "~/atoms"
 
 export function NavBar() {
   const currentId = useAtomValue(currentColumnIDAtom)
-  const { toggle } = useSearchBar()
   const isMobile = useIsMobile()
-  const navigate = useNavigate()
-  const manageId = fixedColumnIds.includes(currentId as any) ? (currentId as any) : "hottest"
+  const enabledColumns = useAtomValue(enabledColumnsAtom)
   const navRef = useRef<HTMLElement | null>(null)
   const tabClass = (active: boolean) => $(
-    "px-[10px] pt-2 pb-3 text-[15px] leading-[20px] whitespace-nowrap relative",
+    "px-2 pt-2 pb-[10px] text-[14px] leading-[20px] whitespace-nowrap relative",
     active
       ? [
           "color-[var(--tt-red)] font-semibold",
-          "after:(content-[''] absolute left-1/2 bottom-0.5 w-5 h-0.5 bg-[var(--tt-red)] -translate-x-1/2 rounded-full)",
+          "after:(content-[''] absolute left-1/2 bottom-1 w-4 h-0.5 bg-[var(--tt-red)] -translate-x-1/2 rounded-full)",
         ]
       : "color-neutral-800 op-70",
   )
 
-  const mobileTabs: ColumnID[] = [
-    "focus",
-    "hottest",
-    "china",
-    "tech",
-    "finance",
-    "world",
-    "realtime",
-  ].filter(k => Object.prototype.hasOwnProperty.call(metadata, k)) as ColumnID[]
+  const mobileTabs = useMemo(() => {
+    const seen = new Set<ColumnID>()
+    const list = enabledColumns
+      .filter(k => Object.prototype.hasOwnProperty.call(metadata, k))
+      .filter((k) => {
+        if (seen.has(k)) return false
+        seen.add(k)
+        return true
+      })
+    if (!list.includes("hottest")) list.unshift("hottest")
+    return list
+  }, [enabledColumns])
 
-  const desktopTabs = fixedColumnIds
-
-  const tabs = (isMobile ? mobileTabs : desktopTabs) as readonly ColumnID[]
+  const tabs = mobileTabs as readonly ColumnID[]
 
   const onClickCapture = useCallback((e: React.MouseEvent) => {
     if (!isMobile) return
@@ -90,32 +89,20 @@ export function NavBar() {
 
       {isMobile && (
         <span className="sticky right-0 flex items-end bg-[var(--tt-card)] pl-1">
-          <button
-            type="button"
-            onClick={() => navigate({ to: "/manage/$column", params: { column: manageId } })}
+          <Link
+            to="/channels"
             className={$([
               "h-8 w-8 rounded-full bg-[var(--tt-search)]",
               "flex items-center justify-center",
               "active:bg-neutral-200 transition-colors",
             ])}
-            aria-label="更多"
+            aria-label="频道管理"
           >
             <span className="i-ph:dots-three-outline-vertical-fill text-[18px] color-neutral-800/80" />
-          </button>
+          </Link>
         </span>
       )}
-      {!isMobile && (
-        <button
-          type="button"
-          onClick={() => toggle(true)}
-          className={$(
-            "px-2 hover:(bg-primary/10 rounded-md) op-70 dark:op-90",
-            "cursor-pointer transition-all",
-          )}
-        >
-          更多
-        </button>
-      )}
+
     </nav>
   )
 }

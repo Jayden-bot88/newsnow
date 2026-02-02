@@ -1,8 +1,10 @@
-import { Link, createFileRoute } from "@tanstack/react-router"
+import { createFileRoute } from "@tanstack/react-router"
+import type { NewsItem, SourceID, SourceResponse } from "@shared/types"
 import { useQueries } from "@tanstack/react-query"
-import type { NewsItem, SourceID } from "@shared/types"
-import { fixedColumnIds } from "@shared/metadata"
+
+import { StatusView } from "~/components/common/status-view"
 import { FeedCard } from "~/components/feed/feed-card"
+import { apiFetch } from "~/utils/apiFetch"
 import { currentColumnIDAtom, currentSourcesAtom } from "~/atoms"
 import { safeParseString } from "~/utils"
 import { cacheSources, refetchSources } from "~/utils/data"
@@ -77,8 +79,7 @@ function SearchPage() {
   const nav = Route.useNavigate()
   const { q } = Route.useSearch()
   const sourceIds = useAtomValue(currentSourcesAtom)
-  const currentId = useAtomValue(currentColumnIDAtom)
-  const manageId = fixedColumnIds.includes(currentId as any) ? (currentId as any) : "hottest"
+  useAtomValue(currentColumnIDAtom)
 
   const [input, setInput] = useState(q)
   const [history, setHistory] = useState<string[]>([])
@@ -113,7 +114,7 @@ function SearchPage() {
           refetchSources.delete(sourceId)
         }
 
-        const res = await myFetch(url, { headers }) as { items: NewsItem[], updatedTime: number | string, id: SourceID }
+        const res = await apiFetch<SourceResponse>(url, { headers })
         cacheSources.set(sourceId, res as any)
         return res
       },
@@ -274,31 +275,36 @@ function SearchPage() {
               </div>
             </section>
 
-            <div className="mt-3 text-center">
-              <Link
-                to="/manage/$column"
-                params={{ column: manageId }}
-                className="inline-flex items-center gap-2 text-[13px] color-[var(--tt-subtext)] active:color-neutral-700"
-              >
-                <span className="i-ph:sliders text-[16px]" />
-                管理来源
-              </Link>
-            </div>
+            <div className="mt-3" />
           </>
         )}
 
         {enabled && (
           <>
-            {allError && (
-              <div className="py-2 text-[12px] color-red-600">所有来源加载失败</div>
-            )}
-
             {loading && !rows.length && (
-              <div className="py-6 text-center text-[13px] color-[var(--tt-subtext)]">加载中...</div>
+              <StatusView title="加载中..." />
             )}
 
             {!loading && !rows.length && (
-              <div className="py-10 text-center text-[13px] color-[var(--tt-subtext)]">没有找到相关内容</div>
+              allError
+                ? (
+                    <StatusView
+                      tone="error"
+                      title="所有来源加载失败"
+                      desc="可稍后重试，或到设置里停用异常来源。"
+                      action={(
+                        <a
+                          href="/settings"
+                          className="inline-flex items-center h-9 px-4 rounded-full bg-white border border-red-200 text-[13px] font-semibold"
+                        >
+                          去设置
+                        </a>
+                      )}
+                    />
+                  )
+                : (
+                    <StatusView title="没有找到相关内容" />
+                  )
             )}
 
             {!!rows.length && (

@@ -41,17 +41,84 @@ body {
   --tt-radius: 10px;
   --tt-gap: 12px;
   --tt-title-size: 17px;
-  --tt-title-line: 24px;
+  --tt-title-line: 25px;
   --tt-meta-size: 12px;
   --tt-meta-line: 16px;
 
   --at-apply: color-base bg-base sprinkle-primary text-base;
+  background: var(--tt-bg);
+  color: var(--tt-text);
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB",
     "Microsoft YaHei", system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
   -moz-user-select: none;
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* Scrollbar: hidden by default, visible while scrolling */
+body {
+  scrollbar-color: transparent transparent;
+  scrollbar-width: thin;
+}
+
+body::-webkit-scrollbar-thumb {
+  background-color: transparent;
+}
+
+body::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+body.tt-scrolling {
+  scrollbar-color: rgba(180, 180, 180, 0.9) transparent;
+}
+
+body.tt-scrolling::-webkit-scrollbar-thumb {
+  background-color: rgba(180, 180, 180, 0.9);
+}
+
+/* Keep scrollbar width stable to avoid layout shifts */
+
+.dark body.tt-scrolling {
+  scrollbar-color: rgba(255, 255, 255, 0.55) transparent;
+}
+
+.dark body.tt-scrolling::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.55);
+}
+
+.tt-scrollbar {
+  scrollbar-color: transparent transparent;
+  scrollbar-width: thin;
+}
+
+.tt-scrollbar::-webkit-scrollbar-thumb {
+  background-color: transparent;
+}
+
+.tt-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.tt-scrollbar.tt-scrolling {
+  scrollbar-color: rgba(180, 180, 180, 0.9) transparent;
+}
+
+.tt-scrollbar.tt-scrolling::-webkit-scrollbar-thumb {
+  background-color: rgba(180, 180, 180, 0.9);
+}
+
+/* Keep scrollbar width stable to avoid layout shifts */
+
+.dark .tt-scrollbar.tt-scrolling {
+  scrollbar-color: rgba(255, 255, 255, 0.55) transparent;
+}
+
+.dark .tt-scrollbar.tt-scrolling::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.55);
 }
 
 /* utilities */

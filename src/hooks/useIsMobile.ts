@@ -1,5 +1,3 @@
-import { useMedia } from "react-use"
-
 /**
  * Viewport-based mobile detection.
  *
@@ -7,5 +5,8 @@ import { useMedia } from "react-use"
  * browser/devtools. For UI layout we want responsive behavior.
  */
 export function useIsMobile() {
-  return useMedia("(max-width: 768px)")
+  // This app intentionally uses a single mobile-first UI across all viewports.
+  // Many components branch on `useIsMobile()`; keeping it viewport-based would
+  // render mixed desktop/mobile layouts on wide screens.
+  return true
 }

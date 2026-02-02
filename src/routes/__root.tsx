@@ -1,18 +1,17 @@
 import "~/styles/globals.css"
 import "virtual:uno.css"
-import { Link, Outlet, createRootRouteWithContext } from "@tanstack/react-router"
+import { Link, Outlet, createRootRouteWithContext, useRouterState } from "@tanstack/react-router"
 import { TanStackRouterDevtools } from "@tanstack/router-devtools"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import type { QueryClient } from "@tanstack/react-query"
-import { fixedColumnIds } from "@shared/metadata"
-import { useIsMobile } from "~/hooks/useIsMobile"
-import { Header } from "~/components/header"
-import { GlobalOverlayScrollbar } from "~/components/common/overlay-scrollbar"
-import { Footer } from "~/components/footer"
+import { ErrorBoundary } from "~/components/common/error-boundary"
 import { Toast } from "~/components/common/toast"
 import { SearchBar } from "~/components/common/search-bar"
 import { NavBar } from "~/components/navbar"
-import { currentColumnIDAtom } from "~/atoms"
+import { useToast } from "~/hooks/useToast"
+import { goToTopAtom } from "~/atoms"
+import { ScrollContainerContext } from "~/components/common/scroll-container"
+import { useOverlayScrollbars } from "~/components/common/overlay-scrollbar/useOverlayScrollbars"
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
@@ -23,56 +22,131 @@ export const Route = createRootRouteWithContext<{
 
 function NotFoundComponent() {
   const nav = Route.useNavigate()
-  nav({
-    to: "/",
-  })
+  useEffect(() => {
+    nav({ to: "/" })
+  }, [nav])
+  return (
+    <div className="min-h-[50vh] flex items-center justify-center px-4">
+      <div className="text-[13px] color-[var(--tt-subtext)]">页面不存在，正在返回首页…</div>
+    </div>
+  )
 }
 
 function RootComponent() {
   useOnReload()
   useSync()
   usePWA()
+
+  const toast = useToast()
+
+  // Reset UI error boundary on navigation.
+  const resetKey = useRouterState({ select: s => s.location.href })
+
+  useEffect(() => {
+    const onOffline = () => toast("网络已断开", { type: "warning" })
+    const onOnline = () => toast("网络已恢复", { type: "success" })
+    window.addEventListener("offline", onOffline)
+    window.addEventListener("online", onOnline)
+    return () => {
+      window.removeEventListener("offline", onOffline)
+      window.removeEventListener("online", onOnline)
+    }
+  }, [toast])
+
+  useEffect(() => {
+    let timer: number | null = null
+
+    const onAnyScroll = () => {
+      document.body.classList.add("tt-scrolling")
+      if (timer) window.clearTimeout(timer)
+      timer = window.setTimeout(() => {
+        document.body.classList.remove("tt-scrolling")
+        timer = null
+      }, 700)
+    }
+
+    // Capture scroll events from scroll containers (not just window).
+    document.addEventListener("scroll", onAnyScroll, { passive: true, capture: true })
+    return () => {
+      document.removeEventListener("scroll", onAnyScroll, true)
+      if (timer) window.clearTimeout(timer)
+    }
+  }, [])
+
   const nav = Route.useNavigate()
-  const isMobile = useIsMobile()
-  const currentId = useAtomValue(currentColumnIDAtom)
-  const manageId = fixedColumnIds.includes(currentId as any) ? (currentId as any) : "hottest"
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null)
+  const setGoToTop = useSetAtom(goToTopAtom)
+  const [initialize, instance] = useOverlayScrollbars({
+    options: {
+      scrollbars: {
+        autoHide: "scroll",
+      },
+    },
+    events: {
+      scroll: (_, e) => {
+        const el = e.target as HTMLElement
+        setGoToTop({
+          ok: el.scrollTop > 100,
+          el,
+          fn: () => el.scrollTo({ top: 0, behavior: "smooth" }),
+        })
+      },
+    },
+    defer: false,
+  })
+
+  useEffect(() => {
+    const el = scrollerRef.current
+    if (!el) return
+
+    initialize({
+      target: el,
+    })
+  }, [initialize])
+
+  useEffect(() => {
+    const host = scrollerRef.current
+    if (!host) return
+
+    const viewport = instance?.elements().viewport
+    const next = viewport || host
+    setScrollEl(next)
+
+    // Ensure tests and code target the actual scroll element.
+    // Ensure tests and code target the actual scroll element.
+    host.removeAttribute("data-testid")
+    next.setAttribute("data-testid", "feed-scroller")
+
+    // Initialize goToTop target even before the first scroll.
+    setGoToTop({
+      ok: false,
+      el: next,
+      fn: () => next.scrollTo({ top: 0, behavior: "smooth" }),
+    })
+  }, [instance, setGoToTop])
+
   return (
-    <>
-      <GlobalOverlayScrollbar
-        className={$([
-          !isMobile && "px-4",
-          "h-full overflow-x-auto",
-          "md:(px-10)",
-          "lg:(px-24)",
-        ])}
-      >
-        <header className={$([
-          "sticky top-0 z-10",
-          "bg-white",
-          "border-b border-[var(--tt-border)]",
+    <ErrorBoundary resetKey={resetKey}>
+      <ScrollContainerContext.Provider value={scrollEl}>
+        <div className={$([
+          "h-full",
+          "w-full max-w-[560px] mx-auto",
+          "flex flex-col",
         ])}
         >
-          {!isMobile && (
-            <div
-              className={$([
-                "grid items-center py-4 px-5",
-                "lg:(py-6)",
-              ])}
-              style={{
-                gridTemplateColumns: "50px auto 50px",
-              }}
-            >
-              <Header />
-            </div>
-          )}
-
-          {isMobile && (
-            <div className="px-3 pt-[calc(env(safe-area-inset-top,0px)+4px)]">
+          <header className={$([
+            "shrink-0",
+            "bg-white",
+            "border-b border-[var(--tt-border)]",
+          ])}
+          >
+            <div className="px-[var(--tt-gap)] pt-[calc(env(safe-area-inset-top,0px)+4px)]">
               <div className="flex items-center gap-3 h-11">
                 <button
                   type="button"
                   className="text-[20px] leading-[24px] font-extrabold color-[var(--tt-red)]"
-                  onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                  onClick={() => scrollerRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
                   aria-label="NewsNow"
                 >
                   头条
@@ -91,42 +165,42 @@ function RootComponent() {
                   <span className="text-[14px] color-[var(--tt-subtext)]">搜你想看</span>
                 </button>
                 <Link
-                  to="/manage/$column"
-                  params={{ column: manageId }}
-                  className="i-ph:dots-three-vertical-duotone text-[22px] color-neutral-700/75 btn"
-                  title="Manage"
-                  aria-label="Manage"
+                  to="/settings"
+                  className="i-ph:gear-six-duotone text-[22px] color-neutral-700/75 btn"
+                  title="Settings"
+                  aria-label="Settings"
                 />
               </div>
               <div className="mt-1 pb-1">
                 <NavBar />
               </div>
             </div>
-          )}
-        </header>
-        <main className={$([
-          !isMobile && "mt-2",
-          "min-h-[calc(100vh-180px)]",
-          "md:(min-h-[calc(100vh-175px)])",
-          "lg:(min-h-[calc(100vh-194px)])",
-        ])}
-        >
-          <Outlet />
-        </main>
-        {!isMobile && (
-          <footer className="py-6 flex flex-col items-center justify-center text-sm text-neutral-500 font-mono">
-            <Footer />
-          </footer>
+          </header>
+
+          <div
+            ref={scrollerRef}
+            className="flex-1 overflow-y-auto overscroll-y-contain scrollbar-hidden"
+          >
+            <main className={$([
+              "min-h-[calc(100vh-180px)]",
+              "md:(min-h-[calc(100vh-175px)])",
+              "lg:(min-h-[calc(100vh-194px)])",
+            ])}
+            >
+              <Outlet />
+            </main>
+          </div>
+        </div>
+
+        <Toast />
+        <SearchBar />
+        {import.meta.env.DEV && (
+          <>
+            <ReactQueryDevtools buttonPosition="bottom-left" />
+            <TanStackRouterDevtools position="bottom-right" />
+          </>
         )}
-      </GlobalOverlayScrollbar>
-      <Toast />
-      <SearchBar />
-      {import.meta.env.DEV && !isMobile && (
-        <>
-          <ReactQueryDevtools buttonPosition="bottom-left" />
-          <TanStackRouterDevtools position="bottom-right" />
-        </>
-      )}
-    </>
+      </ScrollContainerContext.Provider>
+    </ErrorBoundary>
   )
 }
