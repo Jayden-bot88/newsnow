@@ -60,8 +60,20 @@ export function GlobalOverlayScrollbar({ children, className, ...props }: PropsW
   const ref = useRef<HTMLDivElement>(null)
   const lastTrigger = useRef(0)
   const timer = useRef<any>(null)
+  const scrollBarTimerRef = useRef<number | null>(null)
   const setGoToTop = useSetAtom(goToTopAtom)
   const onScroll = useCallback((e: Event) => {
+    const el = ref.current
+    if (el) {
+      // Keep native scrollbar hidden unless actively scrolling.
+      el.classList.add("tt-scrolling")
+      if (scrollBarTimerRef.current) window.clearTimeout(scrollBarTimerRef.current)
+      scrollBarTimerRef.current = window.setTimeout(() => {
+        el.classList.remove("tt-scrolling")
+        scrollBarTimerRef.current = null
+      }, 700)
+    }
+
     const now = Date.now()
     if (now - lastTrigger.current > 50) {
       lastTrigger.current = now
@@ -79,46 +91,19 @@ export function GlobalOverlayScrollbar({ children, className, ...props }: PropsW
       )
     }
   }, [setGoToTop])
-  const [initialize, instance] = useOverlayScrollbars({
-    options: {
-      scrollbars: {
-        autoHide: "scroll",
-      },
-    },
-    events: {
-      scroll: (_, e) => onScroll(e),
-    },
-    defer: true,
-  })
-
   useMount(() => {
-    initialize({
-      target: ref.current!,
-      cancel: {
-        nativeScrollbarsOverlaid: true,
-      },
-    })
     const el = ref.current
-    if (el) {
-      ref.current?.addEventListener("scroll", onScroll)
-      return () => {
-        el?.removeEventListener("scroll", onScroll)
-      }
+    if (!el) return
+
+    el.addEventListener("scroll", onScroll)
+    return () => {
+      el.removeEventListener("scroll", onScroll)
+      if (scrollBarTimerRef.current) window.clearTimeout(scrollBarTimerRef.current)
     }
   })
-
-  useEffect(() => {
-    if (ref.current) {
-      if (instance && instance?.state().destroyed) {
-        ref.current.classList.remove("scrollbar-hidden")
-      } else {
-        ref.current?.classList.add("scrollbar-hidden")
-      }
-    }
-  }, [instance])
 
   return (
-    <div ref={ref} {...props} className={$("overflow-auto scrollbar-hidden", className)}>
+    <div ref={ref} {...props} className={$("overflow-auto tt-scrollbar", className)}>
       <div>{children}</div>
     </div>
   )
