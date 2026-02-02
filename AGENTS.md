@@ -5,7 +5,7 @@ This file guides agentic coding tools working in this repository.
 ## Prime Directive
 - Prefer the smallest safe change that solves the task.
 - Follow existing repo conventions (lint, types, tests) unless asked to change them.
-- Keep diffs focused; do not reformat unrelated files.
+- Keep diffs focused; do not reformat unrelated code.
 - Avoid destructive commands (e.g. `rm -rf`, `git reset --hard`) unless explicitly requested.
 
 ## Repo Rules (Cursor/Copilot/etc.)
@@ -14,136 +14,129 @@ If any of these exist, they are authoritative and must be followed:
 - `.cursorrules`
 - `.github/copilot-instructions.md`
 
-Note: As of this edit, this repo has no `.cursor/`, no `.cursorrules`, and no `.github/copilot-instructions.md`.
+Note: This repo currently has none of the above.
 
-## Project Stack (What You Are In)
-- Package manager: `pnpm` (see `pnpm-lock.yaml` and `package.json#packageManager`)
-- Node: 20 (see `.github/workflows/ci.yml` and `README.md`)
+## Project Stack
+- Package manager: `pnpm` (`package.json#packageManager`)
+- Node: 20 (`.github/workflows/ci.yml`, `README.md`)
 - App: React + Vite (`vite.config.ts`)
-- Server: Nitro (`nitro.config.ts`, output at `dist/output/server/index.mjs`)
-- Lint: ESLint flat config (`eslint.config.mjs`, based on `@ourongxing/eslint-config`)
+- Server: Nitro (`nitro.config.ts`, built server at `dist/output/server/index.mjs`)
+- Lint: ESLint flat config (`eslint.config.mjs`, via `@ourongxing/eslint-config`)
 - Unit tests: Vitest (`vitest.config.ts`)
 - UI regression: Playwright (`playwright.config.ts`)
+- Styling: UnoCSS (`uno.config.ts`)
 
-## Quick Discovery Checklist
-- List files: `ls -la`
-- List tracked files: `git ls-files`
-- Search code: `git grep -n "pattern"`
+## Repo Layout
+- `src/`: frontend (TanStack Router)
+- `server/`: Nitro/h3 backend
+- `shared/`: shared types/utils and generated JSON
+- `test/`: Vitest (non-UI)
+- `test/ui/`: Playwright UI regression tests
+- `scripts/`: build/generation scripts (used by `presource`)
 
-Note: `rg` (ripgrep) is not guaranteed to be installed in this environment; prefer `git grep`.
+## Quick Discovery
+- Search code (fast): `rg -n "pattern"`
+- Search code (git-aware): `git grep -n "pattern"`
 
-## Build / Lint / Test Commands (Repo-Specific)
-
-### Install
+## Commands
+Install:
 - `corepack enable`
 - `pnpm install --frozen-lockfile`
 
-### Dev / Build / Run
-- Dev server: `pnpm dev`
-- Build: `pnpm build`
-- Start built server (requires `.env.server`): `pnpm start`
+Dev/build/run:
+- `pnpm dev` (runs `presource` first)
+- `pnpm build` (runs `presource` first)
+- `pnpm start` (runs built server; needs `.env.server`)
 
-### Lint / Typecheck
-- Lint: `pnpm run lint`
-- Lint (autofix): `pnpm run lint -- --fix`
-- Typecheck: `pnpm run typecheck`
+Env setup:
+- Local dev uses `example.env.server` -> `.env.server` (see `README.md`).
+- `vite.config.ts` loads `.env.server` at build time; don't commit `.env.server`.
 
-CI runs (see `.github/workflows/ci.yml`):
-- `pnpm run lint`
-- `pnpm run typecheck`
-- `pnpm test`
-- `pnpm exec playwright install --with-deps chromium`
-- `pnpm test:ui`
+Cloudflare Pages:
+- `pnpm preview` (sets `CF_PAGES=1` and runs `wrangler pages dev`)
+- `pnpm deploy` (sets `CF_PAGES=1` and runs `wrangler pages deploy`)
 
-### Unit Tests (Vitest)
-- Run all: `pnpm test`
+Quality gates:
+- Lint: `pnpm run lint` (autofix: `pnpm run lint -- --fix`)
+- Typecheck: `pnpm run typecheck` (runs `tsc` for `tsconfig.node.json` and `tsconfig.app.json`)
+- Unit tests: `pnpm test`
+- UI tests: `pnpm test:ui` (update snapshots: `pnpm test:ui:update`)
 
-Run a single file:
-- `pnpm test -- test/common.test.ts`
-- `pnpm test -- server/path/to/foo.test.ts`
+Run a single test:
+- Vitest file: `pnpm test -- test/common.test.ts`
+- Vitest name: `pnpm test -- -t "should do X"`
+- Vitest watch: `pnpm test -- --watch`
+- Playwright spec: `pnpm test:ui -- test/ui/my.spec.ts`
+- Playwright title: `pnpm test:ui -- -g "my test name"`
 
-Run a single test name (substring/regex):
-- `pnpm test -- -t "should do X"`
+CI (see `.github/workflows/ci.yml`) runs: lint, typecheck, `pnpm test`, Playwright install (chromium), `pnpm test:ui`.
 
-Vitest notes: tests live under `server/`, `shared/`, `test/` and `globals: true` is enabled (`vitest.config.ts`).
+Dev server note:
+- `pnpm dev` uses `vite-plugin-with-nitro`, and we override its internal `h3` dependency to stable `h3@1.15.3` (see `package.json#pnpm.overrides`) so dev works on Node 20.
 
-### UI Tests (Playwright)
-- First-time install (local): `pnpm exec playwright install chromium`
-- Run all UI tests: `pnpm test:ui`
-- Update snapshots: `pnpm test:ui:update`
-
-Run a single spec:
-- `pnpm test:ui -- test/ui/my.spec.ts`
-
-Run by test title:
-- `pnpm test:ui -- -g "login"`
-
-Playwright notes: `testDir` is `test/ui`, and a built server is started automatically (`playwright.config.ts`).
+Local smoke (can hit real upstream sites / rate limits):
+- `node scripts/check-detail-all-sources.mjs`
 
 ## Generated / Derived Files (Do Not Hand-Edit)
-- `src/routeTree.gen.ts` (TanStack Router generation; also ignored by ESLint)
-- `imports.app.d.ts` (auto-import typings; generated by `unimport`)
+- `src/routeTree.gen.ts` (TanStack Router generation)
+- `imports.app.d.ts` (auto-import typings from `unimport`)
 - `shared/sources.json`, `shared/pinyin.json` (generated by scripts)
+- `dist/` and `dist/output/` (build output)
 
-When editing sources/config that affect generation, regenerate:
-- `pnpm run presource`
+If you change source definitions / scraping config, regenerate with: `pnpm run presource`.
 
-## Code Style Guidelines (Repo-Specific)
+## Code Style Guidelines
+Formatting:
+- Prefer double quotes, no semicolons, trailing commas in multiline literals/calls.
+- Let ESLint (`eslint.config.mjs`) be the source of truth; avoid drive-by reformatting.
+- ESLint ignores `src/routeTree.gen.ts`, `imports.app.d.ts`, `public/`, and `**/*.json` (see `eslint.config.mjs`).
 
-### Formatting
-- Follow ESLint as the primary style enforcer: `eslint.config.mjs`.
-- Prefer the existing style seen in the codebase:
-  - Double quotes (`"`) for strings.
-  - No semicolons.
-  - Trailing commas in multiline literals/calls.
-- Do not reformat unrelated code.
-
-### Imports
-- Order imports as used across the repo:
-  1) Node built-ins (`node:*`)
-  2) Third-party packages
-  3) Local modules
+Imports:
+- Prefer `node:` built-ins (repo is ESM: `"type": "module"`).
+- Import order: node built-ins, third-party, then local.
 - Use `import type { ... }` for type-only imports.
-- Path aliases (from `vite.config.ts` / tsconfigs):
-  - `~` -> `src`
-  - `@shared` -> `shared`
-  - `#` -> `server`
+- Path aliases: `~` -> `src`, `@shared` -> `shared`, `#` -> `server`.
 
-### TypeScript / Types
-- TS is strict (`tsconfig.base.json`): keep types accurate.
-- Avoid `any`; prefer `unknown` + runtime checks/narrowing.
-- Don't silence errors via `@ts-ignore` / `@ts-expect-error`.
+TypeScript:
+- TS is strict (`tsconfig.base.json`). Avoid `any`; prefer `unknown` + narrowing.
+- Keep casts localized at boundaries (untyped JSON / upstream data) and validate inputs.
+- Do not silence errors with `@ts-ignore` / `@ts-expect-error` unless truly unavoidable.
 
-### Auto-Imports
-- Auto-import is configured via `unimport`:
-  - Frontend dirs: `src/hooks`, `src/utils`, `src/atoms`, plus `shared` (`vite.config.ts`).
-  - Server/shared utils: `server/utils`, `shared` (`nitro.config.ts`, `vitest.config.ts`).
-- If a symbol looks "magically available", check `imports.app.d.ts` and the unimport config before adding manual imports.
-
-### Naming
+Naming:
 - Components/types: `PascalCase`.
 - Functions/variables: `camelCase`.
 - Constants: `SCREAMING_SNAKE_CASE` when appropriate.
 - Keep file/dir naming consistent with neighbors; avoid broad renames.
 
-### Error Handling (Server)
-- Server handlers are h3/Nitro event handlers; prefer structured HTTP errors:
-  - Use `createError({ statusCode, message })` for client-visible failures.
-- Validate/normalize input at boundaries (query/body/headers).
-- Don't swallow errors silently; add context when rethrowing.
+Auto-imports:
+- Auto-import is configured via `unimport` (see `vite.config.ts`, `nitro.config.ts`, `vitest.config.ts`).
+- Frontend: `src/hooks`, `src/utils`, `src/atoms`, and `shared`.
+- Server: `server/utils` and `shared`.
+- `clsx` is auto-imported as `$` (see `vite.config.ts`).
+- If a symbol looks "magically available" or missing, check `imports.app.d.ts` and the unimport config before adding manual imports.
 
-### Logging & Secrets
-- Prefer the shared logger (`server/utils/logger.ts`) over `console.*`.
-- Never log secrets (JWT, OAuth secrets, cookies, tokens, raw personal data).
+CSS / UI:
+- Styling uses UnoCSS; prefer utility classes and variant-group syntax like `sm:(...)`.
 
-### Testing
+Server error handling:
+- Server routes are h3/Nitro handlers; use `createError({ statusCode, message })` for client-visible errors.
+- Validate and normalize at boundaries (query/body/headers); do not swallow errors silently.
+
+Logging & secrets:
+- Prefer `server/utils/logger.ts` over `console.*` on the server.
+- Scripts may use `consola` (`scripts/*.ts`); avoid logging secrets there too.
+- Never log secrets (JWT, OAuth secrets, cookies, tokens, personal data).
+- Do not commit `.env.server`; document via `example.env.server`.
+
+Public API guardrails:
+- `/api/detail` is high risk (SSRF/abuse). Keep checks explicit; respect `DETAIL_ALLOWLIST`/`DETAIL_BLOCKLIST`.
+- If `DETAIL_PUBLIC_JWT_SECRET` is set, `/api/detail` requires `X-Detail-Token` (minted from `/api/detail-token`).
+
+Testing:
 - Keep tests deterministic; avoid real network calls where possible.
 - For bug fixes: add a regression test that fails before the fix.
+- Vitest includes: `server/**/*.test.ts`, `shared/**/*.test.ts`, `test/**/*.test.ts` (`vitest.config.ts`).
+- Playwright runs from `test/ui` and starts a built server automatically (`playwright.config.ts`).
 
-## Hooks / Local Hygiene
-- `simple-git-hooks` runs `lint-staged` on `pre-commit` (see `package.json`).
-- `lint-staged` currently runs `eslint --fix` for `*` (all staged files).
-
-## When Unsure
-- Treat CI as source-of-truth (`.github/workflows/ci.yml`).
-- Prefer asking a clarifying question over guessing behavior.
+## Hooks
+- `simple-git-hooks` runs `lint-staged` on pre-commit; `lint-staged` runs `eslint --fix` on all staged files.
