@@ -31,18 +31,30 @@ export default defineSource(async () => {
     .trim() // 移除首尾空白字符
   const data: Jin10Item[] = JSON.parse(jsonStr)
 
-  return data.filter(k => (k.data.title || k.data.content) && !k.channel?.includes(5)).map((k) => {
-    const text = (k.data.title || k.data.content)!.replace(/<\/?b>/g, "")
-    const [,title, desc] = text.match(/^【([^】]*)】(.*)$/) ?? []
-    return {
-      id: k.id,
-      title: title ?? text,
-      pubDate: parseRelativeDate(k.time, "Asia/Shanghai").valueOf(),
-      url: `https://flash.jin10.com/detail/${k.id}`,
-      extra: {
-        hover: desc,
-        info: !!k.important && "✰",
-      },
-    }
-  })
+  return data
+    .filter(k => (k.data.title || k.data.content) && !k.channel?.includes(5))
+    .flatMap((k) => {
+      const raw = (k.data.title || k.data.content) || ""
+      const text = raw
+        .replace(/<\/?b>/g, "")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+
+      // Drop VIP ads / image-only promos.
+      if (text.length < 20) return []
+      if (/vip_column|cdn\.jin10\.com\/vip_column/i.test(raw)) return []
+
+      const [, title, desc] = text.match(/^【([^】]*)】(.*)$/) ?? []
+      return [{
+        id: k.id,
+        title: title ?? text,
+        pubDate: parseRelativeDate(k.time, "Asia/Shanghai").valueOf(),
+        url: `https://flash.jin10.com/detail/${k.id}`,
+        extra: {
+          hover: desc,
+          info: !!k.important && "✰",
+        },
+      }]
+    })
 })

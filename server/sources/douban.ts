@@ -42,6 +42,13 @@ export default defineSource(async () => {
     extra: {
       info: movie.card_subtitle.split(" / ").slice(0, 3).join(" / "),
       hover: movie.card_subtitle,
+      images: (() => {
+        const imgs = [movie.pic?.large, movie.pic?.normal]
+          .filter((x): x is string => typeof x === "string" && /^https?:\/\//.test(x))
+          .filter((x, i, arr) => arr.indexOf(x) === i)
+          .slice(0, 3)
+        return imgs.length ? imgs : undefined
+      })(),
     },
   }))
 })
