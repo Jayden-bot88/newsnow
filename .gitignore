@@ -30,3 +30,6 @@ artifacts/
 # Local screenshots
 screenshots/local-mobile/
 .env*.local
+
+# Local tool downloads
+.tools/

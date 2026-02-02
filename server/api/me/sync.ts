@@ -1,5 +1,10 @@
 import process from "node:process"
+import { createError, defineEventHandler, readBody } from "h3"
+
+import { verifyPrimitiveMetadata } from "@shared/verify"
 import { UserTable } from "#/database/user"
+
+import { logger } from "#/utils/logger"
 
 export default defineEventHandler(async (event) => {
   try {

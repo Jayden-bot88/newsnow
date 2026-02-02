@@ -1,4 +1,5 @@
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js"
+import { defineEventHandler, readBody } from "h3"
 import { getServer } from "#/mcp/server"
 
 export default defineEventHandler(async (event) => {
