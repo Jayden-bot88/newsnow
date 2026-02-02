@@ -90,7 +90,7 @@ export default defineEventHandler(async (event) => {
       if (i >= ids.length) break
 
       const id = ids[i]!
-      const resolved = sources[id]?.redirect || id
+      const resolved = (sources[id]?.redirect || id) as SourceID
       const getter = getters[resolved]
 
       if (typeof getter !== "function") {

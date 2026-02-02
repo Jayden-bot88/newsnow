@@ -12,8 +12,12 @@ declare global {
   const getHeaders: typeof import("h3").getHeaders
   const getQuery: typeof import("h3").getQuery
   const readBody: typeof import("h3").readBody
+  const getRequestURL: typeof import("h3").getRequestURL
   const sendRedirect: typeof import("h3").sendRedirect
   const setResponseHeader: typeof import("h3").setResponseHeader
+
+  // Nitro provides a global $fetch.
+  const $fetch: typeof import("ofetch").$fetch
 
   // Provided by Nitro database integration (db0).
   const useDatabase: () => Database

@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
+import type { SourceResponse } from "@shared/types"
 import packageJSON from "../../package.json"
 import { description } from "./desc.js"
 

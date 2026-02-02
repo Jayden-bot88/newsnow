@@ -1,5 +1,8 @@
 import { getSearchParams } from "./utils"
 
+import { myFetch } from "#/utils/fetch"
+import { defineSource } from "#/utils/source"
+
 interface Item {
   id: number
   title?: string

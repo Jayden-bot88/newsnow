@@ -1,6 +1,10 @@
 import type { NewsItem } from "@shared/types"
 import { load } from "cheerio"
 
+import { parseRelativeDate } from "#/utils/date"
+import { myFetch } from "#/utils/fetch"
+import { defineSource } from "#/utils/source"
+
 const quick = defineSource(async () => {
   const baseURL = "https://www.36kr.com"
   const url = `${baseURL}/newsflashes`
