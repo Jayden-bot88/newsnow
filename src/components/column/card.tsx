@@ -1,12 +1,17 @@
 import type { NewsItem, SourceID, SourceResponse } from "@shared/types"
+import { sources } from "@shared/sources"
+import { delay } from "@shared/utils"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
+import $ from "clsx"
 import { AnimatePresence, motion, useInView } from "framer-motion"
 import { useWindowSize } from "react-use"
-import { forwardRef, useImperativeHandle } from "react"
+import { forwardRef, useImperativeHandle, useRef } from "react"
 import { OverlayScrollbar } from "../common/overlay-scrollbar"
 import { safeParseString } from "~/utils"
 import { apiFetch } from "~/utils/apiFetch"
+import { cacheSources, refetchSources } from "~/utils/data"
+import { useRefetch } from "~/hooks/useRefetch"
 import { SafeImage } from "~/components/common/safe-image"
 
 export interface ItemsProps extends React.HTMLAttributes<HTMLDivElement> {
