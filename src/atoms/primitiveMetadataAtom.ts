@@ -1,5 +1,12 @@
+import { atom } from "jotai"
 import type { PrimitiveAtom } from "jotai"
+
+import { fixedColumnIds, metadata } from "@shared/metadata"
+import { sources } from "@shared/sources"
+import { typeSafeObjectEntries, typeSafeObjectFromEntries } from "@shared/type.util"
 import type { FixedColumnID, PrimitiveMetadata, SourceID } from "@shared/types"
+
+import { verifyPrimitiveMetadata } from "@shared/verify"
 import type { Update } from "./types"
 
 function createPrimitiveMetadataAtom(
@@ -22,13 +29,16 @@ function createPrimitiveMetadataAtom(
     return initialValue
   }
   const baseAtom = atom(getInitialValue())
-  const derivedAtom = atom(get => get(baseAtom), (get, set, update: Update<PrimitiveMetadata>) => {
-    const nextValue = update instanceof Function ? update(get(baseAtom)) : update
-    if (nextValue.updatedTime > get(baseAtom).updatedTime) {
-      set(baseAtom, nextValue)
-      localStorage.setItem(key, JSON.stringify(nextValue))
-    }
-  })
+  const derivedAtom = atom(
+    get => get(baseAtom),
+    (get, set, update: Update<PrimitiveMetadata>) => {
+      const nextValue = update instanceof Function ? update(get(baseAtom)) : update
+      if (nextValue.updatedTime > get(baseAtom).updatedTime) {
+        set(baseAtom, nextValue)
+        localStorage.setItem(key, JSON.stringify(nextValue))
+      }
+    },
+  )
   return derivedAtom
 }
 
