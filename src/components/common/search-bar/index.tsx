@@ -1,10 +1,16 @@
 import { Command } from "cmdk"
 import { useMount } from "react-use"
 import type { SourceID } from "@shared/types"
+import { columns } from "@shared/metadata"
+import { sources } from "@shared/sources"
+import { typeSafeObjectEntries } from "@shared/type.util"
 import { useMemo, useRef, useState } from "react"
+import $ from "clsx"
 import pinyin from "@shared/pinyin.json"
 import { OverlayScrollbar } from "../overlay-scrollbar"
 import { CardWrapper } from "~/components/column/card"
+import { useSearchBar } from "~/hooks/useSearch"
+import { useFocusWith } from "~/hooks/useFocus"
 
 import "./cmdk.css"
 

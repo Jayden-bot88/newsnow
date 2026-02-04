@@ -1,5 +1,5 @@
 import type { ComponentPropsWithoutRef, ComponentRef, ElementType, ForwardedRef } from "react"
-import { useEffect, useMemo, useRef } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { OverlayScrollbars } from "overlayscrollbars"
 import type { EventListeners, InitializationTarget, PartialOptions } from "overlayscrollbars"
 
