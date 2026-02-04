@@ -1,11 +1,14 @@
 import { useMount } from "react-use"
+import { relativeTime } from "@shared/utils"
+import { atom, useAtomValue } from "jotai"
+import { useEffect, useState } from "react"
 
 /**
  * changed every minute
  */
 const timerAtom = atom(0)
 
-timerAtom.onMount = (set) => {
+timerAtom.onMount = (set: (value: number) => void) => {
   const timer = setInterval(() => {
     set(Date.now())
   }, 60 * 1000)
