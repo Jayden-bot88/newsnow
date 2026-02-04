@@ -1,4 +1,6 @@
 import type { SourceID } from "@shared/types"
+import { useAtom } from "jotai"
+import { useCallback, useMemo } from "react"
 import { focusSourcesAtom } from "~/atoms"
 
 export function useFocus() {
