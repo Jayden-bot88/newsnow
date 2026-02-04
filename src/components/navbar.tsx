@@ -1,6 +1,9 @@
 import type { ColumnID } from "@shared/types"
 import { metadata } from "@shared/metadata"
 import { Link } from "@tanstack/react-router"
+import $ from "clsx"
+import { useCallback, useMemo, useRef } from "react"
+import { useAtomValue } from "jotai"
 import { useIsMobile } from "~/hooks/useIsMobile"
 import { currentColumnIDAtom, enabledColumnsAtom } from "~/atoms"
 
