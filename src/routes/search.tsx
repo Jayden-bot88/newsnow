@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router"
 import type { NewsItem, SourceID, SourceResponse } from "@shared/types"
 import { useQueries } from "@tanstack/react-query"
+import $ from "clsx"
+import { useAtomValue } from "jotai"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 import { StatusView } from "~/components/common/status-view"
 import { FeedCard } from "~/components/feed/feed-card"
@@ -132,8 +135,9 @@ function SearchPage() {
     const out: Array<{ sourceId: SourceID, item: NewsItem, ts: number }> = []
     results.forEach((r, idx) => {
       const sourceId = sourceIds[idx]
-      const items = r.data?.items || []
-      items.forEach((item) => {
+      const data = r.data as SourceResponse | undefined
+      const items = data?.items || []
+      items.forEach((item: NewsItem) => {
         const hay = `${item.title} ${item.extra?.hover ?? ""}`.toLowerCase()
         if (!hay.includes(needle)) return
         out.push({ sourceId, item, ts: itemTimestamp(item) })
