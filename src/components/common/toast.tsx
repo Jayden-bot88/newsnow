@@ -1,7 +1,10 @@
-import { useCallback, useMemo, useRef } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useMount, useWindowSize } from "react-use"
 import { useAutoAnimate } from "@formkit/auto-animate/react"
+import { useAtomValue, useSetAtom } from "jotai"
+import $ from "clsx"
 import type { ToastItem } from "~/atoms/types"
+import { toastAtom } from "~/hooks/useToast"
 import { Timer } from "~/utils"
 
 const WIDTH = 320
