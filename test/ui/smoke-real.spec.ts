@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test"
 
+// Real upstream pages can be flaky / blocked / rate-limited on CI runners.
+// Run explicitly via: PW_REAL_SMOKE=1 pnpm test:ui
+const skipReal = Boolean(process.env.CI) && process.env.PW_REAL_SMOKE !== "1"
+
 test.describe("smoke (real pages)", () => {
+  test.skip(skipReal, "real upstream smoke is disabled in CI")
+
   test("home -> refresh -> settings actions", async ({ page }) => {
     test.setTimeout(240_000)
 

@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test"
 
 test("real home: no partial-source error + no SW cache on localhost", async ({ page }) => {
+  test.skip(Boolean(process.env.CI) && process.env.PW_REAL_SMOKE !== "1", "real upstream smoke is disabled in CI")
+
   await page.goto("/", { waitUntil: "domcontentloaded" })
   await expect(page.getByText("推荐")).toBeVisible()
 
