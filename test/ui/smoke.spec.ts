@@ -1,6 +1,15 @@
 import { Buffer } from "node:buffer"
 import { expect, test } from "@playwright/test"
 
+// Screenshots are sensitive to OS/font rendering. In CI we only assert functional behavior.
+// Opt-in to snapshot comparisons via: PW_SNAPSHOTS=1 pnpm test:ui
+const ENABLE_SNAPSHOTS = !process.env.CI || process.env.PW_SNAPSHOTS === "1"
+
+async function maybeScreenshot(page: any, name: string, options?: any) {
+  if (!ENABLE_SNAPSHOTS) return
+  await expect(page).toHaveScreenshot(name, options)
+}
+
 function sourceResponse(id: string) {
   return {
     status: "success",
@@ -229,25 +238,25 @@ test("home feed", async ({ page }) => {
   await expect(page.getByText("推荐")).toBeVisible()
   await expect(page.getByText("所有来源加载失败")).not.toBeVisible()
   await expect(page.getByText("Demo item from hackernews")).toBeVisible()
-  await expect(page).toHaveScreenshot("home.png", { timeout: 15000 })
+  await maybeScreenshot(page, "home.png", { timeout: 15000 })
 })
 
 test("search default", async ({ page }) => {
   await page.goto("/search?q=", { waitUntil: "domcontentloaded" })
   await expect(page.getByText("热搜")).toBeVisible()
-  await expect(page).toHaveScreenshot("search.png", { timeout: 15000 })
+  await maybeScreenshot(page, "search.png", { timeout: 15000 })
 })
 
 test("detail + image viewer", async ({ page }) => {
   await page.goto("/detail?url=https%3A%2F%2Fexample.com&title=%E6%B5%8B%E8%AF%95&source=%E6%9D%A5%E6%BA%90&time=", { waitUntil: "domcontentloaded" })
   // Wait for extracted content to show.
   await expect(page.getByText("第一段")).toBeVisible()
-  await expect(page).toHaveScreenshot("detail.png", { timeout: 15000 })
+  await maybeScreenshot(page, "detail.png", { timeout: 15000 })
 
   // Open image viewer.
   await page.getByRole("button", { name: "查看图片" }).first().click()
   await expect(page.getByRole("dialog")).toBeVisible()
-  await expect(page).toHaveScreenshot("detail-image-viewer.png", { timeout: 15000, maxDiffPixels: 20 })
+  await maybeScreenshot(page, "detail-image-viewer.png", { timeout: 15000, maxDiffPixels: 20 })
 })
 
 test("detail slow fallback within 3s", async ({ page }) => {
