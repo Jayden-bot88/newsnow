@@ -1,8 +1,10 @@
 import type { PrimitiveMetadata } from "@shared/types"
+import { useAtom } from "jotai"
 import { useDebounce, useMount } from "react-use"
 import { useLogin } from "./useLogin"
 import { useToast } from "./useToast"
-import { safeParseString } from "~/utils"
+import { preprocessMetadata, primitiveMetadataAtom } from "~/atoms/primitiveMetadataAtom"
+import { myFetch, safeParseString } from "~/utils"
 
 async function uploadMetadata(metadata: PrimitiveMetadata) {
   const jwt = safeParseString(localStorage.getItem("jwt"))

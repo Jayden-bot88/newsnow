@@ -4,6 +4,7 @@ import { Link, Outlet, createRootRouteWithContext, useRouterState } from "@tanst
 import { TanStackRouterDevtools } from "@tanstack/router-devtools"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import type { QueryClient } from "@tanstack/react-query"
+import $ from "clsx"
 import { useEffect, useRef, useState } from "react"
 import { useSetAtom } from "jotai"
 import { ErrorBoundary } from "~/components/common/error-boundary"
@@ -16,6 +17,7 @@ import { ScrollContainerContext } from "~/components/common/scroll-container"
 import { useOverlayScrollbars } from "~/components/common/overlay-scrollbar/useOverlayScrollbars"
 import { usePWA } from "~/hooks/usePWA"
 import { useSync } from "~/hooks/useSync"
+import { useOnReload } from "~/hooks/useOnReload"
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
