@@ -33,8 +33,26 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
+  ui:
+    # Screenshot baselines in this repo are generated on macOS (e.g. *-darwin.png).
+    # Run Playwright on macOS to avoid cross-platform font/rendering diffs.
+    runs-on: macos-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Install Playwright (chromium)
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm exec playwright install chromium
 
       - name: UI regression (screenshots)
         run: pnpm test:ui
