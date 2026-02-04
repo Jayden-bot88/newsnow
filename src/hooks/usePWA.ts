@@ -1,6 +1,9 @@
 import { useRegisterSW } from "virtual:pwa-register/react"
 import { useMount } from "react-use"
+import { Homepage, Version } from "@shared/consts"
+import { delay } from "@shared/utils"
 import { useToast } from "./useToast"
+import { myFetch } from "~/utils"
 
 export function usePWA() {
   const toaster = useToast()
