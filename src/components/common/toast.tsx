@@ -43,7 +43,7 @@ function Item({ info }: { info: ToastItem }) {
   const color = colors[info.type ?? "info"]
   const setToastItems = useSetAtom(toastAtom)
   const hidden = useCallback((dismiss = true) => {
-    setToastItems((prev: ToastItem[]) => prev.filter(k => k.id !== info.id))
+    setToastItems((prev: ToastItem[]) => prev.filter((k: ToastItem) => k.id !== info.id))
     if (dismiss) {
       info.onDismiss?.()
     }

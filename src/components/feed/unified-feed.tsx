@@ -1,5 +1,7 @@
 import type { NewsItem, SourceID, SourceResponse } from "@shared/types"
 import { useQueries, useQueryClient } from "@tanstack/react-query"
+import { useAtomValue } from "jotai"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 import { StatusView } from "~/components/common/status-view"
 import { FeedCard } from "~/components/feed/feed-card"
