@@ -7,6 +7,7 @@ import { useCallback, useMemo, useState } from "react"
 
 import { clearDismissedAtom, disabledSourcesAtom, dismissedSetAtom } from "~/atoms"
 import { useToast } from "~/hooks/useToast"
+import { myFetch } from "~/utils"
 
 type SourceHealthStatus = "ok" | "empty" | "fail" | "unknown"
 
