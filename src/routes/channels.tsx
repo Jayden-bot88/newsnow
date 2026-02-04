@@ -2,6 +2,9 @@ import type { BaseEventPayload, ElementDragType } from "@atlaskit/pragmatic-drag
 import type { ColumnID } from "@shared/types"
 import { metadata } from "@shared/metadata"
 import { createFileRoute } from "@tanstack/react-router"
+import $ from "clsx"
+import { useCallback, useMemo, useRef, useState } from "react"
+import { useAtom } from "jotai"
 
 import { DndContext } from "~/components/common/dnd"
 import { useSortable } from "~/components/common/dnd/useSortable"
