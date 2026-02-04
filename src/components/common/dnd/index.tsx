@@ -1,9 +1,11 @@
 import { monitorForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
 import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine"
 import { autoScrollForElements } from "@atlaskit/pragmatic-drag-and-drop-auto-scroll/element"
+import { useEffect, useState } from "react"
 import type { PropsWithChildren } from "react"
 import type { AllEvents, ElementDragType } from "@atlaskit/pragmatic-drag-and-drop/dist/types/internal-types"
 import type { ElementAutoScrollArgs } from "@atlaskit/pragmatic-drag-and-drop-auto-scroll/dist/types/internal-types"
+import { randomUUID } from "@shared/utils"
 import { InstanceIdContext } from "./useSortable"
 
 interface ContextProps extends Partial<AllEvents<ElementDragType>> {

@@ -1,5 +1,8 @@
 import type { ColumnID } from "@shared/types"
+import { fixedColumnIds, metadata } from "@shared/metadata"
+import { useEffect } from "react"
 import { useTitle } from "react-use"
+import { useAtom } from "jotai"
 import { Dnd } from "./dnd"
 import { currentColumnIDAtom } from "~/atoms"
 import { useIsMobile } from "~/hooks/useIsMobile"
