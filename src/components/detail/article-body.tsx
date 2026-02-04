@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 import { useMemo } from "react"
+import $ from "clsx"
 
 type Block =
   | { type: "h2", text: string }
