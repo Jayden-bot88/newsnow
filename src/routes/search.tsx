@@ -97,7 +97,7 @@ function SearchPage() {
   }, [])
 
   const results = useQueries({
-    queries: sourceIds.map(sourceId => ({
+    queries: sourceIds.map((sourceId: SourceID) => ({
       queryKey: ["source", sourceId],
       enabled,
       queryFn: async () => {
