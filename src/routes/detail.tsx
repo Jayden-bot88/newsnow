@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { SourceID } from "@shared/types"
-import { useAtomValue } from "jotai"
+import { formatDetailError } from "@shared/detail-error"
+import { upgradeImageUrl } from "@shared/image-url"
+import { useAtom, useAtomValue } from "jotai"
 import $ from "clsx"
 import { useToast } from "~/hooks/useToast"
 import { useRelativeTime } from "~/hooks/useRelativeTime"
@@ -10,12 +12,12 @@ import { ArticleBody } from "~/components/detail/article-body"
 import type { DetailBlock } from "~/components/detail/article-blocks"
 import { ArticleBlocks } from "~/components/detail/article-blocks"
 import { FeedCard } from "~/components/feed/feed-card"
-import { goToTopAtom } from "~/atoms"
+import { focusSourcesAtom, goToTopAtom } from "~/atoms"
 import { useIsMobile } from "~/hooks/useIsMobile"
 import { useScrollContainerEl } from "~/components/common/scroll-container"
 import { DetailComments } from "~/components/detail/comments"
 import { ImageViewer } from "~/components/detail/image-viewer"
-import { SafeImage } from "~/components/common/safe-image"
+import { SmartImage } from "~/components/common/smart-image"
 import { StatusView } from "~/components/common/status-view"
 import { getVideoFromApi, getVideoFromDetailUrl, isVideoDetailUrl } from "~/utils/video"
 import { apiFetch } from "~/utils/apiFetch"
@@ -85,6 +87,9 @@ function DetailPage() {
   const [viewerOpen, setViewerOpen] = useState(false)
   const [viewerIndex, setViewerIndex] = useState(0)
 
+  const [focusSources, setFocusSources] = useAtom(focusSourcesAtom)
+  const isFocused = !!sid && focusSources.includes(sid)
+
   const goBack = useCallback(() => {
     if (typeof window === "undefined") {
       nav({ to: "/" })
@@ -128,6 +133,23 @@ function DetailPage() {
     },
     [contentBlocks],
   )
+
+  const normalizeCoverImages = useCallback((imgs: unknown) => {
+    const raw = Array.isArray(imgs) ? imgs : []
+    const out: string[] = []
+    const seen = new Set<string>()
+    for (const x of raw) {
+      if (typeof x !== "string" || !/^https?:\/\//.test(x)) continue
+      if (seen.has(x)) continue
+      seen.add(x)
+      out.push(upgradeImageUrl(x))
+      if (out.length >= 3) break
+    }
+    return out
+  }, [])
+
+  const [coverImages, setCoverImages] = useState<string[]>([])
+  const coverFetchedRef = useRef(false)
   const detailImages = useMemo(
     () => {
       // Policy A: only use images returned by /api/detail (or inline img blocks).
@@ -138,6 +160,8 @@ function DetailPage() {
     },
     [contentImages, inlineImages],
   )
+
+  const viewerImages = detailImages.length ? detailImages : coverImages
   const summary = item?.extra?.hover || ""
 
   const video = useMemo(
@@ -237,11 +261,7 @@ function DetailPage() {
           setContentError("网络不可用")
           return
         }
-        if (err instanceof Error && err.message) {
-          setContentError(err.message)
-          return
-        }
-        setContentError("正文加载失败")
+        setContentError(formatDetailError(err))
       })
       .finally(() => {
         if (!cancelled) setContentLoading(false)
@@ -255,6 +275,33 @@ function DetailPage() {
   const canExpand = contentText.length > 900
   const isVideoDetail = !!video || (url ? isVideoDetailUrl(url) : false)
   const videoIntro = contentDesc || summary
+
+  useEffect(() => {
+    const next = normalizeCoverImages(item?.extra?.images)
+    if (next.length) {
+      setCoverImages(next)
+    }
+  }, [item, normalizeCoverImages])
+
+  useEffect(() => {
+    if (coverFetchedRef.current) return
+    if (coverImages.length) return
+    if (!sid || !iid) return
+
+    coverFetchedRef.current = true
+    const cleanIid = iid.replace(/^"|"$/g, "")
+
+    void apiFetch(`/s?id=${sid}`)
+      .then((data) => {
+        const items = Array.isArray((data as any)?.items) ? (data as any).items : []
+        const hit = items.find((x: any) => String(x?.id) === cleanIid)
+        const imgs = normalizeCoverImages(hit?.extra?.images)
+        if (imgs.length) setCoverImages(imgs)
+      })
+      .catch(() => {
+        // ignore
+      })
+  }, [coverImages.length, iid, normalizeCoverImages, sid])
 
   return (
     <div className="min-h-[100vh] bg-white flex flex-col">
@@ -311,9 +358,17 @@ function DetailPage() {
                 <button
                   type="button"
                   className="ml-1 h-6 px-2 rounded-full border border-[var(--tt-red)] color-[var(--tt-red)] text-[12px] leading-[14px] font-semibold"
-                  onClick={() => toast("已关注")}
+                  onClick={() => {
+                    if (!sid) return
+                    setFocusSources((prev) => {
+                      return prev.includes(sid)
+                        ? prev.filter(x => x !== sid)
+                        : [sid, ...prev]
+                    })
+                    toast(isFocused ? "已取消关注" : "已关注")
+                  }}
                 >
-                  关注
+                  {isFocused ? "已关注" : "关注"}
                 </button>
               </>
             )}
@@ -390,7 +445,7 @@ function DetailPage() {
                         }}
                         aria-label="查看图片"
                       >
-                        <SafeImage
+                        <SmartImage
                           src={src}
                           alt=""
                           className="w-full h-[86px] rounded-[6px] bg-[#f2f3f5] object-cover"
@@ -411,8 +466,58 @@ function DetailPage() {
                     }}
                     aria-label="查看图片"
                   >
-                    <SafeImage
+                    <SmartImage
                       src={detailImages[0]}
+                      alt=""
+                      className="w-full h-[190px] rounded-[10px] bg-[#f2f3f5] object-cover"
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                    />
+                  </button>
+                )}
+          </div>
+        )}
+
+        {!detailImages.length && !isVideoDetail && coverImages.length > 0 && (
+          <div className="px-[var(--tt-gap)] mt-3">
+            <div className="mb-2 text-[12px] color-neutral-400">封面图（来自列表）</div>
+            {coverImages.length >= 3
+              ? (
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {coverImages.slice(0, 3).map((src, idx) => (
+                      <button
+                        key={src}
+                        type="button"
+                        className="p-0 m-0 border-0 bg-transparent"
+                        onClick={() => {
+                          setViewerIndex(idx)
+                          setViewerOpen(true)
+                        }}
+                        aria-label="查看图片"
+                      >
+                        <SmartImage
+                          src={src}
+                          alt=""
+                          className="w-full h-[86px] rounded-[6px] bg-[#f2f3f5] object-cover"
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )
+              : (
+                  <button
+                    type="button"
+                    className="block w-full p-0 m-0 border-0 bg-transparent"
+                    onClick={() => {
+                      setViewerIndex(0)
+                      setViewerOpen(true)
+                    }}
+                    aria-label="查看图片"
+                  >
+                    <SmartImage
+                      src={coverImages[0]}
                       alt=""
                       className="w-full h-[190px] rounded-[10px] bg-[#f2f3f5] object-cover"
                       loading="lazy"
@@ -445,13 +550,25 @@ function DetailPage() {
               title="正文加载失败"
               desc={contentError}
               action={(
-                <button
-                  type="button"
-                  className="h-9 px-4 rounded-full bg-neutral-100 text-[13px] font-semibold color-[var(--tt-text)] active:bg-neutral-200"
-                  onClick={() => setReloadKey(x => x + 1)}
-                >
-                  重试
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="h-9 px-4 rounded-full bg-neutral-100 text-[13px] font-semibold color-[var(--tt-text)] active:bg-neutral-200"
+                    onClick={() => setReloadKey(x => x + 1)}
+                  >
+                    重试
+                  </button>
+                  {url && (
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="h-9 px-4 rounded-full bg-white border border-[var(--tt-border)] text-[13px] font-semibold color-[var(--tt-text)] active:bg-neutral-100 inline-flex items-center"
+                    >
+                      打开原文
+                    </a>
+                  )}
+                </div>
               )}
             />
           )}
@@ -520,7 +637,27 @@ function DetailPage() {
             </div>
           )}
 
-          {isVideoDetail && !videoIntro && (!contentLoading || slowFallback) && (
+          {isVideoDetail && !videoIntro && !contentLoading && contentError && (
+            <StatusView
+              tone="warning"
+              title="视频信息加载失败"
+              desc={contentError}
+              action={url
+                ? (
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center h-9 px-4 rounded-full bg-neutral-100 text-[13px] font-semibold color-[var(--tt-text)] active:bg-neutral-200"
+                    >
+                      打开原文
+                    </a>
+                  )
+                : undefined}
+            />
+          )}
+
+          {isVideoDetail && !videoIntro && !contentError && (!contentLoading || slowFallback) && (
             <div className="mt-3 text-[13px] color-neutral-500">
               暂无视频简介，可点击右上角“原文”查看。
             </div>
@@ -564,7 +701,7 @@ function DetailPage() {
 
       <ImageViewer
         open={viewerOpen}
-        images={detailImages}
+        images={viewerImages}
         initialIndex={viewerIndex}
         onClose={() => setViewerOpen(false)}
       />

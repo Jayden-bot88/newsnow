@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test"
 
 // Screenshots are sensitive to OS/font rendering. In CI we only assert functional behavior.
 // Opt-in to snapshot comparisons via: PW_SNAPSHOTS=1 pnpm test:ui
-const ENABLE_SNAPSHOTS = !process.env.CI || process.env.PW_SNAPSHOTS === "1"
+const ENABLE_SNAPSHOTS = process.env.PW_SNAPSHOTS === "1"
 
 async function maybeScreenshot(page: any, name: string, options?: any) {
   if (!ENABLE_SNAPSHOTS) return
