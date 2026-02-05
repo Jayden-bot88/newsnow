@@ -50,6 +50,21 @@ async function fetchJson(path, extraHeaders = {}) {
   }
 }
 
+async function fetchJsonWithRetry(path, extraHeaders = {}) {
+  const maxRetries = Math.max(0, Number(process.env.RETRY_429 || "2"))
+  let attempt = 0
+  let last
+  while (attempt <= maxRetries) {
+    const res = await fetchJson(path, extraHeaders)
+    last = res
+    if (res.status !== 429) return res
+    const backoff = 1000 * Math.min(5, attempt + 1)
+    await sleep(backoff)
+    attempt += 1
+  }
+  return last
+}
+
 async function initDetailToken() {
   // Token may be disabled on server (501) when DETAIL_PUBLIC_JWT_SECRET is unset.
   try {
@@ -185,7 +200,7 @@ async function main() {
     // Rate-limit a bit to avoid being blocked by upstream sites.
     if (DETAIL_DELAY_MS) await sleep(DETAIL_DELAY_MS)
     const t0 = Date.now()
-    const res = await fetchJson(
+    const res = await fetchJsonWithRetry(
       `/api/detail?url=${encodeURIComponent(task.url)}`,
       detailToken ? { "X-Detail-Token": detailToken } : {},
     )
