@@ -1,5 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router"
 import type { NewsItem, SourceID, SourceResponse } from "@shared/types"
+import { sources } from "@shared/sources"
+import { HOT_WORDS } from "@shared/hot-words"
+import { isMutedItem, normalizeMutedNeedles } from "@shared/muted-keywords"
 import { useQueries } from "@tanstack/react-query"
 import $ from "clsx"
 import { useAtomValue } from "jotai"
@@ -8,14 +11,24 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { StatusView } from "~/components/common/status-view"
 import { FeedCard } from "~/components/feed/feed-card"
 import { apiFetch } from "~/utils/apiFetch"
-import { currentColumnIDAtom, currentSourcesAtom } from "~/atoms"
-import { safeParseString } from "~/utils"
+import { currentColumnIDAtom, currentSourcesAtom, mutedKeywordsAtom } from "~/atoms"
+import { readJwt, safeParseString } from "~/utils"
 import { cacheSources, refetchSources } from "~/utils/data"
 
 export const Route = createFileRoute("/search")({
   validateSearch: (search) => {
     const q = typeof search.q === "string" ? search.q : ""
-    return { q }
+
+    const source = typeof search.source === "string" && sources[search.source as SourceID]
+      ? (search.source as SourceID)
+      : ""
+
+    const rangeRaw = typeof search.range === "string" ? search.range : "all"
+    const range: Range = (rangeRaw === "24h" || rangeRaw === "7d" || rangeRaw === "30d")
+      ? rangeRaw
+      : "all"
+
+    return { q, source, range }
   },
   component: SearchPage,
 })
@@ -23,18 +36,7 @@ export const Route = createFileRoute("/search")({
 const HISTORY_KEY = "tt-search-history"
 const HISTORY_LIMIT = 12
 
-const HOT_WORDS = [
-  "美国爆发集会要求ICE撤离",
-  "“10万亿之省”再扩容",
-  "U23国足决赛首发名单",
-  "英国首相要求特朗普道歉",
-  "黄景瑜将成太空旅客",
-  "出口商品清单看外贸变化",
-  "土耳其外长：以寻求攻击伊朗",
-  "学者：美退群充斥功利算计",
-  "我国有望开发极限密度器件",
-  "中方回应特朗普涉华言论",
-]
+type Range = "all" | "24h" | "7d" | "30d"
 
 function toTimestamp(v: unknown): number {
   if (typeof v === "number") return v
@@ -80,9 +82,10 @@ function pushHistory(term: string) {
 
 function SearchPage() {
   const nav = Route.useNavigate()
-  const { q } = Route.useSearch()
+  const { q, source: sourceFilter, range } = Route.useSearch()
   const sourceIds = useAtomValue(currentSourcesAtom)
   useAtomValue(currentColumnIDAtom)
+  const mutedKeywords = useAtomValue(mutedKeywordsAtom)
 
   const [input, setInput] = useState(q)
   const [history, setHistory] = useState<string[]>([])
@@ -90,10 +93,39 @@ function SearchPage() {
   const trimmedQ = q.trim()
   const enabled = trimmedQ.length > 0
 
+  const mutedNeedles = useMemo(() => {
+    return normalizeMutedNeedles(mutedKeywords)
+  }, [mutedKeywords])
+
+  const sourceOptions = useMemo(() => {
+    const uniq = Array.from(new Set(sourceIds))
+    return uniq
+      .map((id) => {
+        const s = sources[id]
+        const label = s?.desc || s?.title || s?.name || id
+        return { id, label }
+      })
+      .sort((a, b) => a.label.localeCompare(b.label, "zh-Hans-CN"))
+  }, [sourceIds])
+
+  const sinceTs = useMemo(() => {
+    const now = Date.now()
+    switch (range) {
+      case "24h":
+        return now - 24 * 60 * 60 * 1000
+      case "7d":
+        return now - 7 * 24 * 60 * 60 * 1000
+      case "30d":
+        return now - 30 * 24 * 60 * 60 * 1000
+      default:
+        return 0
+    }
+  }, [range])
+
   useEffect(() => {
     setInput(q)
     setLimit(30)
-  }, [q])
+  }, [q, range, sourceFilter])
 
   useEffect(() => {
     setHistory(readHistory())
@@ -112,7 +144,7 @@ function SearchPage() {
         const headers: Record<string, any> = {}
         if (refetchSources.has(sourceId)) {
           url = `/s?id=${sourceId}&latest`
-          const jwt = safeParseString(localStorage.getItem("jwt"))
+          const jwt = readJwt()
           if (jwt) headers.Authorization = `Bearer ${jwt}`
           refetchSources.delete(sourceId)
         }
@@ -135,17 +167,23 @@ function SearchPage() {
     const out: Array<{ sourceId: SourceID, item: NewsItem, ts: number }> = []
     results.forEach((r, idx) => {
       const sourceId = sourceIds[idx]
+      if (sourceFilter && sourceId !== sourceFilter) return
       const data = r.data as SourceResponse | undefined
       const items = data?.items || []
       items.forEach((item: NewsItem) => {
         const hay = `${item.title} ${item.extra?.hover ?? ""}`.toLowerCase()
         if (!hay.includes(needle)) return
-        out.push({ sourceId, item, ts: itemTimestamp(item) })
+        if (isMutedItem(item, mutedNeedles)) return
+
+        const ts = itemTimestamp(item)
+        if (sinceTs && (!ts || ts < sinceTs)) return
+
+        out.push({ sourceId, item, ts })
       })
     })
     out.sort((a, b) => (b.ts || -1) - (a.ts || -1))
     return out
-  }, [enabled, results, sourceIds, trimmedQ])
+  }, [enabled, mutedNeedles, results, sinceTs, sourceFilter, sourceIds, trimmedQ])
 
   const loading = enabled && results.some(r => r.isLoading)
   const allError = enabled && results.length > 0 && results.every(r => r.isError)
@@ -154,14 +192,28 @@ function SearchPage() {
     const v = raw.trim()
     if (!v) return
     setHistory(pushHistory(v))
-    nav({ to: "/search", search: { q: v } })
-  }, [nav])
+    nav({ to: "/search", search: { q: v, source: sourceFilter, range } })
+  }, [nav, range, sourceFilter])
 
   const onSubmit = useCallback(() => {
     const v = input.trim()
     if (!v) return
     commit(v)
   }, [commit, input])
+
+  const setSourceFilter = useCallback((raw: string) => {
+    const next = raw && sources[raw as SourceID] ? (raw as SourceID) : ""
+    nav({ to: "/search", search: { q, source: next, range } })
+  }, [nav, q, range])
+
+  const setRange = useCallback((raw: string) => {
+    const next: Range = (raw === "24h" || raw === "7d" || raw === "30d") ? raw : "all"
+    nav({ to: "/search", search: { q, source: sourceFilter, range: next } })
+  }, [nav, q, sourceFilter])
+
+  const resetFilters = useCallback(() => {
+    nav({ to: "/search", search: { q, source: "", range: "all" } })
+  }, [nav, q])
 
   return (
     <div className="min-h-[100vh] bg-[var(--tt-bg)]">
@@ -285,6 +337,49 @@ function SearchPage() {
 
         {enabled && (
           <>
+            <div className="mb-3 bg-white rounded-[10px] border border-[var(--tt-border)] px-3 py-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[12px] color-neutral-500 shrink-0">来源</span>
+                <select
+                  value={sourceFilter}
+                  onChange={e => setSourceFilter(e.target.value)}
+                  className="h-8 rounded-[10px] bg-[var(--tt-search)] px-2 text-[12px] outline-none flex-1"
+                >
+                  <option value="">全部来源</option>
+                  {sourceOptions.map(s => (
+                    <option key={s.id} value={s.id}>{s.label}</option>
+                  ))}
+                </select>
+
+                <span className="text-[12px] color-neutral-500 shrink-0">时间</span>
+                <select
+                  value={range}
+                  onChange={e => setRange(e.target.value)}
+                  className="h-8 rounded-[10px] bg-[var(--tt-search)] px-2 text-[12px] outline-none"
+                >
+                  <option value="all">不限</option>
+                  <option value="24h">24小时</option>
+                  <option value="7d">7天</option>
+                  <option value="30d">30天</option>
+                </select>
+
+                {(sourceFilter || range !== "all") && (
+                  <button
+                    type="button"
+                    className="h-8 px-2 rounded-[10px] bg-neutral-100 text-[12px] color-neutral-700 active:bg-neutral-200"
+                    onClick={resetFilters}
+                  >
+                    清空
+                  </button>
+                )}
+
+                <span className="ml-auto text-[12px] color-neutral-500 shrink-0">
+                  {rows.length}
+                  条
+                </span>
+              </div>
+            </div>
+
             {loading && !rows.length && (
               <StatusView title="加载中..." />
             )}
@@ -307,7 +402,21 @@ function SearchPage() {
                     />
                   )
                 : (
-                    <StatusView title="没有找到相关内容" />
+                    <StatusView
+                      title="没有找到相关内容"
+                      desc={sourceFilter || range !== "all" ? "可尝试清空筛选条件后再试。" : "可尝试换个关键词再试。"}
+                      action={(sourceFilter || range !== "all")
+                        ? (
+                            <button
+                              type="button"
+                              className="inline-flex items-center h-9 px-4 rounded-full bg-neutral-100 text-[13px] font-semibold color-[var(--tt-text)] active:bg-neutral-200"
+                              onClick={resetFilters}
+                            >
+                              清空筛选
+                            </button>
+                          )
+                        : undefined}
+                    />
                   )
             )}
 
@@ -315,7 +424,7 @@ function SearchPage() {
               <ul className="bg-white rounded-[10px] overflow-hidden">
                 {rows.slice(0, limit).map((row, idx) => (
                   <div key={`${row.sourceId}:${row.item.id}`}>
-                    <FeedCard item={row.item} sourceId={row.sourceId} showDismiss={false} />
+                    <FeedCard item={row.item} sourceId={row.sourceId} showDismiss={false} highlightQuery={trimmedQ} />
                     {idx !== Math.min(limit, rows.length) - 1 && <div className="tt-divider mx-[var(--tt-gap)]" />}
                   </div>
                 ))}
