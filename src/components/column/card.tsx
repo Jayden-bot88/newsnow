@@ -8,7 +8,7 @@ import { AnimatePresence, motion, useInView } from "framer-motion"
 import { useWindowSize } from "react-use"
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react"
 import { OverlayScrollbar } from "../common/overlay-scrollbar"
-import { safeParseString } from "~/utils"
+import { readJwt } from "~/utils"
 import { apiFetch } from "~/utils/apiFetch"
 import { cacheSources, refetchSources } from "~/utils/data"
 import { useRefetch } from "~/hooks/useRefetch"
@@ -70,7 +70,7 @@ function NewsCard({ id, setHandleRef }: NewsCardProps) {
       const headers: Record<string, any> = {}
       if (refetchSources.has(id)) {
         url = `/s?id=${id}&latest`
-        const jwt = safeParseString(localStorage.getItem("jwt"))
+        const jwt = readJwt()
         if (jwt) headers.Authorization = `Bearer ${jwt}`
         refetchSources.delete(id)
       } else if (cacheSources.has(id)) {
