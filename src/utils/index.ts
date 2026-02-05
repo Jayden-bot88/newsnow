@@ -9,6 +9,21 @@ export function safeParseString(str: any) {
   }
 }
 
+export function readJwt(): string {
+  const raw = localStorage.getItem("jwt")
+  if (!raw) return ""
+  const v = raw.trim()
+  if (!v) return ""
+  try {
+    const parsed = JSON.parse(v) as unknown
+    if (typeof parsed === "string" && parsed.trim()) return parsed.trim()
+  } catch {
+    // ignore
+  }
+  // Backward compatibility: tolerate accidental quoting.
+  return v.replace(/^"|"$/g, "")
+}
+
 export class Timer {
   private timerId?: any
   private start!: number
