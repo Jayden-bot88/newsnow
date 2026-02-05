@@ -20,7 +20,7 @@ Note: This repo currently has none of the above.
 - Package manager: `pnpm` (`package.json#packageManager`)
 - Node: 20 (`.github/workflows/ci.yml`, `README.md`)
 - App: React + Vite (`vite.config.ts`)
-- Server: Nitro (`nitro.config.ts`, built server at `dist/output/server/index.mjs`)
+- Server: Nitro via `vite-plugin-with-nitro` (`nitro.config.ts`, built server at `dist/output/server/index.mjs`)
 - Lint: ESLint flat config (`eslint.config.mjs`, via `@ourongxing/eslint-config`)
 - Unit tests: Vitest (`vitest.config.ts`)
 - UI regression: Playwright (`playwright.config.ts`)
@@ -48,6 +48,9 @@ Dev/build/run:
 - `pnpm build` (runs `presource` first)
 - `pnpm start` (runs built server; needs `.env.server`)
 
+Codegen/data refresh:
+- `pnpm run presource` (runs `tsx ./scripts/favicon.ts` and `tsx ./scripts/source.ts`)
+
 Env setup:
 - Local dev uses `example.env.server` -> `.env.server` (see `README.md`).
 - `vite.config.ts` loads `.env.server` at build time; don't commit `.env.server`.
@@ -69,7 +72,10 @@ Run a single test:
 - Playwright spec: `pnpm test:ui -- test/ui/my.spec.ts`
 - Playwright title: `pnpm test:ui -- -g "my test name"`
 
-CI (see `.github/workflows/ci.yml`) runs: lint, typecheck, `pnpm test`, Playwright install (chromium), `pnpm test:ui`.
+Playwright local setup (if browsers are missing):
+- `pnpm exec playwright install chromium`
+
+CI (see `.github/workflows/ci.yml`) runs: lint, typecheck, `pnpm test` (ubuntu) and `pnpm test:ui` (macos; screenshot baselines are darwin).
 
 Dev server note:
 - `pnpm dev` uses `vite-plugin-with-nitro`, and we override its internal `h3` dependency to stable `h3@1.15.3` (see `package.json#pnpm.overrides`) so dev works on Node 20.
@@ -100,7 +106,7 @@ Imports:
 TypeScript:
 - TS is strict (`tsconfig.base.json`). Avoid `any`; prefer `unknown` + narrowing.
 - Keep casts localized at boundaries (untyped JSON / upstream data) and validate inputs.
-- Do not silence errors with `@ts-ignore` / `@ts-expect-error` unless truly unavoidable.
+- Avoid `@ts-ignore` / `@ts-expect-error`; if truly unavoidable, keep it local and add a short reason.
 
 Naming:
 - Components/types: `PascalCase`.
@@ -112,7 +118,7 @@ Auto-imports:
 - Auto-import is configured via `unimport` (see `vite.config.ts`, `nitro.config.ts`, `vitest.config.ts`).
 - Frontend: `src/hooks`, `src/utils`, `src/atoms`, and `shared`.
 - Server: `server/utils` and `shared`.
-- `clsx` is auto-imported as `$` (see `vite.config.ts`).
+- `clsx` is available as `$` via auto-imports (see `vite.config.ts` + `imports.app.d.ts`), but many files import it explicitly; follow the file's existing pattern.
 - If a symbol looks "magically available" or missing, check `imports.app.d.ts` and the unimport config before adding manual imports.
 
 CSS / UI:
@@ -123,13 +129,14 @@ Server error handling:
 - Validate and normalize at boundaries (query/body/headers); do not swallow errors silently.
 
 Logging & secrets:
-- Prefer `server/utils/logger.ts` over `console.*` on the server.
+- Prefer `server/utils/logger.ts` (consola) over `console.*` on the server.
 - Scripts may use `consola` (`scripts/*.ts`); avoid logging secrets there too.
 - Never log secrets (JWT, OAuth secrets, cookies, tokens, personal data).
 - Do not commit `.env.server`; document via `example.env.server`.
 
 Public API guardrails:
 - `/api/detail` is high risk (SSRF/abuse). Keep checks explicit; respect `DETAIL_ALLOWLIST`/`DETAIL_BLOCKLIST`.
+- SSRF guard lives in `server/utils/detail-ssrf.ts` and has regression tests in `server/api/detail-ssrf.test.ts`.
 - If `DETAIL_PUBLIC_JWT_SECRET` is set, `/api/detail` requires `X-Detail-Token` (minted from `/api/detail-token`).
 
 Testing:
