@@ -9,7 +9,7 @@ vi.mock("node:dns/promises", () => {
 
 describe("/api/detail SSRF guard", async () => {
   const dns = await import("node:dns/promises")
-  const { assertSafeDetailUrl } = await import("../utils/detail-ssrf")
+  const { assertSafeDetailUrl } = await import("../server/utils/detail-ssrf")
 
   it("blocks obvious localhost/private IP targets", async () => {
     await expect(assertSafeDetailUrl("http://localhost/"))

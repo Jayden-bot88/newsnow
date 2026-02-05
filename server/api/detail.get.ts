@@ -10,14 +10,17 @@ import { postProcessDetailBlocks } from "../utils/detail-blocks-post"
 import { extractGenericBlocks } from "../utils/detail-generic-blocks"
 import { getDetailSummaryHint } from "../utils/detail-site-hints"
 import { extractSiteContent } from "../utils/detail-site-content"
-import { extractDoubanMovieSubjectDetail, extractJin10FlashDetail, extractKaopuNewsListEntryDetail, extractMktnewsFlashDetail, extractXueqiuStockDetail, parseJin10NewestJs } from "../utils/detail-site-api"
+import { extractDoubanMovieSubjectDetail, extractJin10FlashDetail, extractKaopuNewsListEntryDetail, extractMktnewsFlashDetail, extractXueqiuStockDetail, extractZhihuAnswerDetail, extractZhihuQuestionDetail, parseJin10NewestJs } from "../utils/detail-site-api"
 import { verifyDetailPublicToken } from "../utils/detail-public-token"
 import { assertSafeDetailUrl } from "../utils/detail-ssrf"
+import { getZhihuApiRequest } from "../utils/detail-zhihu"
+import { extractMetaImages, pickFallbackImages } from "../utils/detail-meta-images"
 import { getRateLimitTable } from "#/database/rate-limit"
 
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
 const DETAIL_BLOCKLIST = process.env.DETAIL_BLOCKLIST
 const DETAIL_PUBLIC_JWT_SECRET = process.env.DETAIL_PUBLIC_JWT_SECRET
+const DETAIL_ZHIHU_COOKIE = process.env.DETAIL_ZHIHU_COOKIE
 
 const FETCH_TIMEOUT_MS = 20_000
 const MAX_HTML_BYTES = 2_000_000
@@ -389,6 +392,22 @@ async function tryExtractViaSiteApi(inputUrl: string) {
 
   const host = u.hostname.toLowerCase()
 
+  // Zhihu detail pages are frequently gated by anti-bot; prefer its public API when cookie is provided.
+  // NOTE: cookie is optional to avoid sending credentials unintentionally.
+  if (DETAIL_ZHIHU_COOKIE && (host === "www.zhihu.com" || host === "zhihu.com")) {
+    const req = getZhihuApiRequest(inputUrl)
+    if (req) {
+      const json = await fetchJsonWithLimit(req.apiUrl, {
+        cookie: DETAIL_ZHIHU_COOKIE,
+        Referer: req.referer,
+      })
+      const extracted = req.kind === "answer"
+        ? extractZhihuAnswerDetail({ apiJson: json })
+        : extractZhihuQuestionDetail({ apiJson: json })
+      if (extracted) return extracted
+    }
+  }
+
   // Jin10 flash detail pages are mostly share templates; use its newest JS feed.
   if (host === "flash.jin10.com" || host.endsWith(".jin10.com")) {
     const m = /^\/detail\/(\d+)/.exec(u.pathname)
@@ -505,15 +524,20 @@ function pickMainContainer($: ReturnType<typeof load>) {
   const selectors = [
     "article",
     "[role='article']",
+    "[itemprop='articleBody']",
     "#article",
+    "#js_content",
     "#content",
     "#main",
+    ".article-body",
     ".article",
     ".article-content",
     ".content",
+    ".post-body",
     ".post",
     ".post-content",
     ".entry-content",
+    ".markdown-body",
     ".rich-content",
     ".main",
     "main",
@@ -645,6 +669,9 @@ export default defineEventHandler(async (event) => {
 
   const { html, finalUrl } = await fetchHtmlWithLimit(url)
 
+  const metaImages = extractMetaImages(html, finalUrl)
+  const fallbackImages = pickFallbackImages({ finalUrl, metaImages })
+
   // Some forum pages return an access-denied template with a copyright footer.
   // Do not treat it as extractable content.
   try {
@@ -770,6 +797,11 @@ export default defineEventHandler(async (event) => {
       const textFromBlocks = blocksToText(blocks)
       const finalText = textFromBlocks || extracted?.text || ""
 
+      const imagesFromBlocksOnly = imagesFromBlocks(blocks)
+      const images = imagesFromBlocksOnly.length
+        ? imagesFromBlocksOnly
+        : (extracted?.images?.length ? extracted.images : fallbackImages)
+
       const payload = {
         url,
         site,
@@ -777,8 +809,8 @@ export default defineEventHandler(async (event) => {
         desc: finalText,
         text: finalText,
         blocks,
-        // Policy A: only keep images that are truly in body blocks.
-        images: imagesFromBlocks(blocks),
+        // Prefer body images. Fall back to site-specific images, then meta images.
+        images,
         video: undefined,
       }
       setResponseHeader(event, "Cache-Control", "public, s-maxage=60, stale-while-revalidate=600")
@@ -855,8 +887,7 @@ export default defineEventHandler(async (event) => {
     return finalTextRaw
   })()
 
-  // Policy A: do not attach best-effort meta/DOM images to detail unless they are in body blocks.
-  // (This avoids showing og:image/avatars/UI images that are not part of the article body.)
+  // Prefer body images. Fall back to filtered meta images if body images are missing.
 
   const site = (() => {
     try {
@@ -866,16 +897,26 @@ export default defineEventHandler(async (event) => {
     }
   })()
 
-  const blocks = postProcessDetailBlocks({
+  let blocks = postProcessDetailBlocks({
     host: site,
     title,
     blocks: extractGenericBlocks({ $, container, baseUrl: finalUrl }) as PostDetailBlock[],
   })
 
+  if (!blocks.length && desc && desc.length >= 40) {
+    if (site.endsWith("inews.qq.com") || site.endsWith("news.qq.com")) {
+      const seeded: PostDetailBlock[] = []
+      if (fallbackImages[0]) seeded.push({ type: "img", src: fallbackImages[0] })
+      seeded.push({ type: "p", text: desc })
+      blocks = seeded
+    }
+  }
+
   const textFromBlocks = blocksToText(blocks)
   const finalTextFromBlocks = textFromBlocks || finalText
 
-  const images = imagesFromBlocks(blocks)
+  const imagesFromBlocksOnly = imagesFromBlocks(blocks)
+  const images = imagesFromBlocksOnly.length ? imagesFromBlocksOnly : fallbackImages
 
   const payload = {
     url,
