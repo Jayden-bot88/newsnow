@@ -28,6 +28,7 @@ declare global {
   const myCrypto: typeof import("./utils/crypto").myCrypto
   const rss2json: typeof import("./utils/rss2json").rss2json
   const defineRSSSource: typeof import("./utils/source").defineRSSSource
+  const defineJsonFeedSource: typeof import("./utils/source").defineJsonFeedSource
 
   // Provided by Nitro database integration (db0).
   const useDatabase: () => Database
