@@ -1,5 +1,6 @@
 import type { NewsItem, SourceID } from "@shared/types"
 import { sources } from "@shared/sources"
+import { upgradeImageUrl } from "@shared/image-url"
 import { Link } from "@tanstack/react-router"
 import { Fragment, memo, useEffect, useRef, useState } from "react"
 import type { ReactNode } from "react"
@@ -9,7 +10,7 @@ import { dismissItemAtom, makeDismissKey } from "~/atoms"
 import { isVideoDetailUrl } from "~/utils/video"
 import { useToast } from "~/hooks/useToast"
 import { useRelativeTime } from "~/hooks/useRelativeTime"
-import { SafeImage } from "~/components/common/safe-image"
+import { SmartImage } from "~/components/common/smart-image"
 
 type ImageLayout = "none" | "right" | "three"
 
@@ -45,6 +46,7 @@ function extractImages(item: NewsItem): string[] {
       seen.add(key)
       return true
     })
+    .map(upgradeImageUrl)
     .slice(0, 3)
 }
 
@@ -104,11 +106,13 @@ function FeedCardInner({
   sourceId,
   compact = false,
   showDismiss = true,
+  highlightQuery,
 }: {
   item: NewsItem
   sourceId: SourceID
   compact?: boolean
   showDismiss?: boolean
+  highlightQuery?: string
 }) {
   const dismiss = useSetAtom(dismissItemAtom)
   const toast = useToast()
@@ -154,6 +158,38 @@ function FeedCardInner({
     hasThumb: Boolean(thumb),
   })
   const isVideo = typeof url === "string" && url ? isVideoDetailUrl(url) : false
+
+  const titleNode = (() => {
+    const q = highlightQuery?.trim()
+    if (!q) return item.title
+    const lower = item.title.toLowerCase()
+    const needle = q.toLowerCase()
+    if (!needle || !lower.includes(needle)) return item.title
+
+    const nodes: ReactNode[] = []
+    let i = 0
+    while (true) {
+      const idx = lower.indexOf(needle, i)
+      if (idx < 0) {
+        const tail = item.title.slice(i)
+        if (tail) nodes.push(tail)
+        break
+      }
+      const head = item.title.slice(i, idx)
+      if (head) nodes.push(head)
+      const hit = item.title.slice(idx, idx + needle.length)
+      nodes.push(
+        <mark
+          key={`hit-${idx}`}
+          className="bg-amber-100/80 text-[var(--tt-text)] rounded px-0.5"
+        >
+          {hit}
+        </mark>,
+      )
+      i = idx + needle.length
+    }
+    return nodes.length ? <>{nodes}</> : item.title
+  })()
 
   const metaNodes: Array<{ key: string, node: ReactNode }> = []
   if (relative) {
@@ -206,7 +242,7 @@ function FeedCardInner({
       >
         <div className={$(layout === "right" || layout === "left" ? "flex gap-3" : "block")}>
           {layout === "left" && thumb && (
-            <SafeImage
+            <SmartImage
               src={thumb}
               alt=""
               className={$(
@@ -228,7 +264,7 @@ function FeedCardInner({
               "line-clamp-2",
             ])}
             >
-              {item.title}
+              {titleNode}
             </div>
 
             {layout === "three" && (thumb || images.length) && !compact && (
@@ -239,7 +275,7 @@ function FeedCardInner({
                 ])}
               >
                 {(images.length ? images : [thumb!]).slice(0, 3).map(src => (
-                  <SafeImage
+                  <SmartImage
                     key={src}
                     src={src}
                     alt=""
@@ -255,7 +291,7 @@ function FeedCardInner({
             )}
 
             {layout === "large" && thumb && !compact && (
-              <SafeImage
+              <SmartImage
                 src={thumb}
                 alt=""
                 className="mt-2 w-full h-[190px] rounded-[10px] bg-[var(--tt-search)] object-cover"
@@ -371,7 +407,7 @@ function FeedCardInner({
           </div>
 
           {layout === "right" && thumb && (
-            <SafeImage
+            <SmartImage
               src={thumb}
               alt=""
               className={$(

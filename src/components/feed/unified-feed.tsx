@@ -1,4 +1,5 @@
 import type { NewsItem, SourceID, SourceResponse } from "@shared/types"
+import { isMutedItem, normalizeMutedNeedles } from "@shared/muted-keywords"
 import { useQueries, useQueryClient } from "@tanstack/react-query"
 import { useAtomValue } from "jotai"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -10,10 +11,10 @@ import { apiFetch } from "~/utils/apiFetch"
 import { useToast } from "~/hooks/useToast"
 import { useScrollContainerEl } from "~/components/common/scroll-container"
 
-import { currentColumnIDAtom, currentSourcesAtom, dismissedSetAtom, makeDismissKey } from "~/atoms"
+import { currentColumnIDAtom, currentSourcesAtom, dismissedSetAtom, focusSourcesAtom, makeDismissKey, mutedKeywordsAtom } from "~/atoms"
 import { useEntireQuery, useUpdateQuery } from "~/hooks/query"
 import { cacheSources, refetchSources } from "~/utils/data"
-import { safeParseString } from "~/utils"
+import { readJwt } from "~/utils"
 import { useIsMobile } from "~/hooks/useIsMobile"
 
 interface FeedRow {
@@ -28,6 +29,8 @@ interface CachedRows {
 }
 
 const MAX_SOURCE_STREAK = 2
+const MAX_SOURCE_STREAK_FOCUSED = 3
+const FOCUS_BOOST_MS = 12 * 60 * 1000
 
 const ESTIMATED_ROW_HEIGHT = 118
 const WINDOW_OVERSCAN = 8
@@ -106,11 +109,28 @@ export function UnifiedFeed() {
   const sourceIds = useAtomValue(currentSourcesAtom)
   const columnId = useAtomValue(currentColumnIDAtom)
   const dismissed = useAtomValue(dismissedSetAtom)
+  const mutedKeywords = useAtomValue(mutedKeywordsAtom)
+  const focusSources = useAtomValue(focusSourcesAtom)
   const update = useUpdateQuery()
   const toast = useToast()
   const queryClient = useQueryClient()
   const isMobile = useIsMobile()
   const sourceKey = sourceIds.join("|")
+
+  const mutedNeedles = useMemo(() => {
+    return normalizeMutedNeedles(mutedKeywords)
+  }, [mutedKeywords])
+
+  const focusSet = useMemo(() => new Set(focusSources), [focusSources])
+
+  const maxStreakFor = useCallback((sourceId: SourceID) => {
+    return focusSet.has(sourceId) ? MAX_SOURCE_STREAK_FOCUSED : MAX_SOURCE_STREAK
+  }, [focusSet])
+
+  const headScore = useCallback((row: FeedRow) => {
+    const ts = row.ts || 0
+    return ts + (focusSet.has(row.sourceId) ? FOCUS_BOOST_MS : 0)
+  }, [focusSet])
 
   const [limit, setLimit] = useState(36)
   const [refreshing, setRefreshing] = useState(false)
@@ -222,7 +242,7 @@ export function UnifiedFeed() {
         const headers: Record<string, any> = {}
         if (refetchSources.has(sourceId)) {
           url = `/s?id=${sourceId}&latest`
-          const jwt = safeParseString(localStorage.getItem("jwt"))
+          const jwt = readJwt()
           if (jwt) headers.Authorization = `Bearer ${jwt}`
           refetchSources.delete(sourceId)
         }
@@ -261,7 +281,10 @@ export function UnifiedFeed() {
         cache.set(sourceId, baseRows)
       }
 
-      const rows = baseRows.rows.filter(row => !dismissed.has(makeDismissKey(sourceId, row.item.id)))
+      const rows = baseRows.rows.filter((row) => {
+        if (dismissed.has(makeDismissKey(sourceId, row.item.id))) return false
+        return !isMutedItem(row.item, mutedNeedles)
+      })
       queues.set(sourceId, rows)
     })
 
@@ -281,10 +304,15 @@ export function UnifiedFeed() {
       }
       if (!candidates.length) break
 
-      candidates.sort((a, b) => (b.head.ts || -1) - (a.head.ts || -1))
+      candidates.sort((a, b) => {
+        const sa = headScore(a.head)
+        const sb = headScore(b.head)
+        if (sa !== sb) return sb - sa
+        return (b.head.ts || -1) - (a.head.ts || -1)
+      })
 
       const pick = (() => {
-        if (lastSource && streak >= MAX_SOURCE_STREAK) {
+        if (lastSource && streak >= maxStreakFor(lastSource)) {
           const alt = candidates.find(c => c.sourceId !== lastSource)
           return alt || candidates[0]
         }
@@ -315,7 +343,7 @@ export function UnifiedFeed() {
     }
 
     return merged
-  }, [dismissed, results, sourceIds])
+  }, [dismissed, headScore, maxStreakFor, mutedNeedles, results, sourceIds])
 
   // Keep list order stable while sources are still loading.
   // Otherwise new sources arriving can insert items near the top and cause jarring jumps.
@@ -334,7 +362,7 @@ export function UnifiedFeed() {
 
   useEffect(() => {
     if (!computedRows.length) {
-      if (!loading) setRenderRows([])
+      if (!loading && renderRows.length) setRenderRows([])
       return
     }
 
@@ -351,9 +379,10 @@ export function UnifiedFeed() {
 
       // Only append new items to keep order stable.
       // Otherwise new sources arriving can insert items near the top and cause jarring jumps.
+      if (!appended.length && existing.length === prev.length) return prev
       return [...existing, ...appended]
     })
-  }, [computedRows, loading])
+  }, [computedRows, loading, renderRows.length])
 
   useEffect(() => {
     if (!sentinelRef.current) return
