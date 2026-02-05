@@ -70,7 +70,10 @@ function resolveImgUrl($: CheerioAPI, el: DomNode, baseUrl: string): string | un
   const src = bestFromSrcset
     || $(el).attr("data-src")
     || $(el).attr("data-original")
+    || $(el).attr("data-lazyload")
+    || $(el).attr("data-actualsrc")
     || $(el).attr("data-lazy-src")
+    || $(el).attr("data-url")
     || $(el).attr("src")
   if (!src) return undefined
 

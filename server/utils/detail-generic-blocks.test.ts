@@ -43,4 +43,22 @@ describe("detail-generic-blocks", () => {
     })
     expect(blocks.map(b => b.type)).toEqual(["img", "caption"])
   })
+
+  it("extracts images from common lazy attributes", () => {
+    const html = [
+      "<article>",
+      "<p>hello</p>",
+      "<img data-lazyload=\"/a.png\" alt=\"a\" />",
+      "<img data-actualsrc=\"https://img.example/b.png\" />",
+      "</article>",
+    ].join("")
+    const $ = load(html)
+    const blocks = extractGenericBlocks({
+      $,
+      container: $("article"),
+      baseUrl: "https://example.com/x",
+    })
+    expect(blocks.some(b => b.type === "img" && b.src === "https://example.com/a.png")).toBe(true)
+    expect(blocks.some(b => b.type === "img" && b.src === "https://img.example/b.png")).toBe(true)
+  })
 })
