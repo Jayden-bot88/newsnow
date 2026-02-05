@@ -165,7 +165,7 @@ function RootComponent() {
                     "px-4 flex items-center gap-2",
                     "active:bg-neutral-200 transition-colors",
                   ])}
-                  onClick={() => nav({ to: "/search", search: { q: "" } })}
+                  onClick={() => nav({ to: "/search", search: { q: "", source: "", range: "all" } })}
                 >
                   <span className="i-ph:magnifying-glass-duotone text-[16px] color-[var(--tt-subtext)]" />
                   <span className="text-[14px] color-[var(--tt-subtext)]">搜你想看</span>

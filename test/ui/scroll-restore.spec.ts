@@ -109,6 +109,7 @@ test("home: back from detail restores scroll position", async ({ page }) => {
 
   await expect(scroller).toBeVisible()
 
-  const restored = await scroller.evaluate(el => (el as any).scrollTop as number)
-  expect(restored).toBeGreaterThanOrEqual(saved - 10)
+  await expect.poll(async () => {
+    return scroller.evaluate(el => (el as any).scrollTop as number)
+  }, { timeout: 10_000 }).toBeGreaterThanOrEqual(saved - 10)
 })
