@@ -124,6 +124,47 @@ export function defineRSSSource(url: string, option?: SourceOption): SourceGette
   }
 }
 
+export function defineJsonFeedSource(url: string, option?: SourceOption): SourceGetter {
+  return async () => {
+    const data = await myFetch(url) as any
+    const items = Array.isArray(data?.items) ? data.items : []
+    if (!items.length) throw new Error("Cannot fetch json feed data")
+
+    return items.map((item: any) => {
+      const title = String(item?.title || "").trim()
+      const link = String(item?.url || item?.link || "").trim()
+      const id = item?.id ?? link
+      const html = String(item?.content_html || item?.content || "")
+      const desc = String(item?.summary || item?.description || "")
+
+      const images = mergeImages(
+        item?.image,
+        item?.banner_image,
+        item?.attachments,
+        item?.enclosures,
+      )
+
+      const htmlImages = images.length >= 3
+        ? []
+        : Array.from(new Set([
+            ...extractImagesFromHtml(html),
+            ...extractImagesFromHtml(desc),
+            ...extractImagesFromText(desc),
+          ])).slice(0, 3)
+
+      const merged = Array.from(new Set([...images, ...htmlImages])).slice(0, 3)
+
+      return {
+        title,
+        url: link,
+        id,
+        pubDate: !option?.hiddenDate ? (item?.date_modified ?? item?.date_published) : undefined,
+        extra: merged.length ? { images: merged } : undefined,
+      }
+    }).filter((x: any) => x.title && x.url)
+  }
+}
+
 export function defineRSSHubSource(route: string, RSSHubOptions?: RSSHubOption, sourceOption?: SourceOption): SourceGetter {
   return async () => {
     // "https://rsshub.pseudoyu.com"
