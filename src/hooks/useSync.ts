@@ -1,13 +1,14 @@
 import type { PrimitiveMetadata } from "@shared/types"
 import { useAtom } from "jotai"
+import { useRef } from "react"
 import { useDebounce, useMount } from "react-use"
 import { useLogin } from "./useLogin"
 import { useToast } from "./useToast"
 import { preprocessMetadata, primitiveMetadataAtom } from "~/atoms/primitiveMetadataAtom"
-import { myFetch, safeParseString } from "~/utils"
+import { myFetch, readJwt } from "~/utils"
 
 async function uploadMetadata(metadata: PrimitiveMetadata) {
-  const jwt = safeParseString(localStorage.getItem("jwt"))
+  const jwt = readJwt()
   if (!jwt) return
   await myFetch("/me/sync", {
     method: "POST",
@@ -22,7 +23,7 @@ async function uploadMetadata(metadata: PrimitiveMetadata) {
 }
 
 async function downloadMetadata(): Promise<PrimitiveMetadata | undefined> {
-  const jwt = safeParseString(localStorage.getItem("jwt"))
+  const jwt = readJwt()
   if (!jwt) return
   const { data, updatedTime } = await myFetch("/me/sync", {
     headers: {
@@ -43,22 +44,35 @@ export function useSync() {
   const [primitiveMetadata, setPrimitiveMetadata] = useAtom(primitiveMetadataAtom)
   const { logout, login } = useLogin()
   const toaster = useToast()
+  const warnedRef = useRef(false)
 
   useDebounce(async () => {
     const fn = async () => {
       try {
         await uploadMetadata(primitiveMetadata)
       } catch (e: any) {
-        if (e.statusCode !== 506) {
-          toaster("身份校验失败，无法同步，请重新登录", {
-            type: "error",
-            action: {
-              label: "登录",
-              onClick: login,
+        const code = e?.statusCode
+        if (code === 506) return
+
+        if (!warnedRef.current) {
+          warnedRef.current = true
+          toaster(
+            code === 401
+              ? "身份校验失败，无法同步，请重新登录"
+              : "同步失败，请稍后重试",
+            {
+              type: code === 401 ? "error" : "warning",
+              action: code === 401
+                ? {
+                    label: "登录",
+                    onClick: login,
+                  }
+                : undefined,
             },
-          })
-          logout()
+          )
         }
+
+        if (code === 401) logout()
       }
     }
 
@@ -74,16 +88,28 @@ export function useSync() {
           setPrimitiveMetadata(preprocessMetadata(metadata))
         }
       } catch (e: any) {
-        if (e.statusCode !== 506) {
-          toaster("身份校验失败，无法同步，请重新登录", {
-            type: "error",
-            action: {
-              label: "登录",
-              onClick: login,
+        const code = e?.statusCode
+        if (code === 506) return
+
+        if (!warnedRef.current) {
+          warnedRef.current = true
+          toaster(
+            code === 401
+              ? "身份校验失败，无法同步，请重新登录"
+              : "同步失败，请稍后重试",
+            {
+              type: code === 401 ? "error" : "warning",
+              action: code === 401
+                ? {
+                    label: "登录",
+                    onClick: login,
+                  }
+                : undefined,
             },
-          })
-          logout()
+          )
         }
+
+        if (code === 401) logout()
       }
     }
     fn()
