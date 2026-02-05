@@ -1,5 +1,5 @@
 import type { CSSProperties, ImgHTMLAttributes } from "react"
-import { useState } from "react"
+import { forwardRef, useState } from "react"
 
 type SafeImageProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "onError"> & {
   fallbackClassName?: string
@@ -11,7 +11,7 @@ function mergeClassName(...classes: Array<string | undefined>) {
   return classes.filter(Boolean).join(" ")
 }
 
-export function SafeImage({
+export const SafeImage = forwardRef<HTMLImageElement, SafeImageProps>(({
   src,
   className,
   style,
@@ -20,7 +20,7 @@ export function SafeImage({
   onError,
   alt = "",
   ...rest
-}: SafeImageProps) {
+}: SafeImageProps, ref) => {
   const [failed, setFailed] = useState(false)
 
   if (!src || failed) {
@@ -43,10 +43,11 @@ export function SafeImage({
       alt={alt}
       className={className}
       style={style}
+      ref={ref}
       onError={(event) => {
         setFailed(true)
         onError?.(event)
       }}
     />
   )
-}
+})
