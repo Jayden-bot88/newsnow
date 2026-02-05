@@ -184,6 +184,19 @@ export function extractSiteContent(params: {
     if (text) {
       const blocks: DetailBlock[] = []
       if (title) blocks.push({ type: "h2", text: title })
+
+      const looksHtml = /<\w[\s\S]*>/.test(text)
+      if (looksHtml) {
+        const extracted = extractFromHtmlContent(text)
+        blocks.push(...extracted.blocks)
+        return {
+          title: title || undefined,
+          text: extracted.text || text,
+          images: extracted.images,
+          blocks,
+        }
+      }
+
       blocks.push({ type: "p", text })
       return { title: title || undefined, text, images: [], blocks }
     }
@@ -233,10 +246,38 @@ export function extractSiteContent(params: {
   // The Paper embeds full HTML content inside Next.js data.
   if (host.endsWith("thepaper.cn")) {
     const data = extractNextDataJson(html)
-    const contentHtml = data?.props?.pageProps?.detailData?.contentDetail?.content
+    const detail = data?.props?.pageProps?.detailData?.contentDetail
+    const contentHtml = detail?.content
+    const summary = typeof detail?.summary === "string" ? detail.summary.trim() : ""
+    const pic = typeof detail?.pic === "string" ? detail.pic.trim() : ""
+    const sharePic = typeof detail?.sharePic === "string" ? detail.sharePic.trim() : ""
+    const image = [sharePic, pic].find(x => typeof x === "string" && isHttpUrl(x))
+
     if (typeof contentHtml === "string" && contentHtml.trim()) {
       const extracted = extractFromHtmlContent(contentHtml)
       if (extracted.text) return extracted
+
+      const blocks: DetailBlock[] = []
+      if (image) blocks.push({ type: "img", src: image })
+      if (summary) blocks.push({ type: "p", text: summary })
+      if (blocks.length) {
+        return {
+          text: summary,
+          images: image ? [image] : [],
+          blocks,
+        }
+      }
+    }
+
+    if (summary) {
+      const blocks: DetailBlock[] = []
+      if (image) blocks.push({ type: "img", src: image })
+      blocks.push({ type: "p", text: summary })
+      return {
+        text: summary,
+        images: image ? [image] : [],
+        blocks,
+      }
     }
   }
 

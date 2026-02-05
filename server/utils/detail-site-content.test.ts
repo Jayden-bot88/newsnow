@@ -30,6 +30,33 @@ describe("detail-site-content", () => {
     expect(types).toEqual(["p", "p", "img"])
   })
 
+  it("falls back to thepaper summary + sharePic when content is video-only", () => {
+    const html = `
+      <html><head></head><body>
+        <script id="__NEXT_DATA__" type="application/json">${JSON.stringify({
+          props: {
+            pageProps: {
+              detailData: {
+                contentDetail: {
+                  content: "<video src=\"https://video.example/a.mp4\"></video>",
+                  summary: "summary text",
+                  sharePic: "https://img.example/s.png",
+                },
+              },
+            },
+          },
+        })}</script>
+      </body></html>
+    `.trim()
+    const out = extractSiteContent({
+      html,
+      finalUrl: "https://m.thepaper.cn/newsDetail_forward_1",
+    })
+    expect(out?.text).toBe("summary text")
+    expect(out?.images?.[0]).toBe("https://img.example/s.png")
+    expect((out?.blocks || []).map(b => b.type)).toEqual(["img", "p"])
+  })
+
   it("extracts from ifeng allData docData.contentData.contentList", () => {
     const allData = {
       docData: {
@@ -143,6 +170,30 @@ describe("detail-site-content", () => {
     const out = extractSiteContent({ html, finalUrl: "https://www.cls.cn/detail/1" })
     expect(out?.text).toBe("C")
     expect(out?.blocks?.[0]?.type).toBe("h2")
+  })
+
+  it("extracts cls html content blocks and images", () => {
+    const nextData = {
+      props: {
+        initialState: {
+          detail: {
+            articleDetail: {
+              title: "T",
+              content: "<p>hello</p><img src=\"https://img.example/a.png\" />",
+            },
+          },
+        },
+      },
+    }
+    const html = `
+      <html><body>
+        <script id="__NEXT_DATA__" type="application/json">${JSON.stringify(nextData)}</script>
+      </body></html>
+    `.trim()
+    const out = extractSiteContent({ html, finalUrl: "https://www.cls.cn/detail/2" })
+    expect(out?.text).toContain("hello")
+    expect(out?.images?.[0]).toBe("https://img.example/a.png")
+    expect((out?.blocks || []).some(b => b.type === "img")).toBe(true)
   })
 
   it("extracts v2ex .topic_content html", () => {
