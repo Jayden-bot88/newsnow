@@ -84,6 +84,17 @@ DETAIL_RATE_LIMIT_PER_MIN=30
 DETAIL_CACHE_MAX_ENTRIES=200
 ```
 
+### Configuration Matrix
+
+- **Read-only (no DB, no login)**: leave `G_CLIENT_ID/G_CLIENT_SECRET/JWT_SECRET` unset; set `ENABLE_CACHE=false` (or omit DB)
+- **Cache enabled (DB required)**: set `ENABLE_CACHE=true`; set `INIT_TABLE=true` on first run (then you can set it to `false`)
+- **Login + sync (DB required)**: set `G_CLIENT_ID`, `G_CLIENT_SECRET`, `JWT_SECRET`; set `INIT_TABLE=true` on first run
+- **Public /api/detail token (optional)**: set `DETAIL_PUBLIC_JWT_SECRET` to require `X-Detail-Token` (minted from `/api/detail-token`)
+
+Notes:
+- Cloudflare Pages uses D1 binding `NEWSNOW_DB` (see `example.wrangler.toml`, `nitro.config.ts`)
+- Vercel preset disables built-in sqlite; you must bring your own DB connector (see `nitro.config.ts`)
+
 ### Database Support
 
 Supported database connectors: https://db0.unjs.io/connectors

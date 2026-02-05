@@ -79,6 +79,17 @@ DETAIL_RATE_LIMIT_PER_MIN=30
 DETAIL_CACHE_MAX_ENTRIES=200
 ```
 
+### 配置矩阵
+
+- **只读（无 DB / 无登录）**：不设置 `G_CLIENT_ID/G_CLIENT_SECRET/JWT_SECRET`；将 `ENABLE_CACHE=false`（或不配置 DB）
+- **开启缓存（需要 DB）**：设置 `ENABLE_CACHE=true`；首次运行 `INIT_TABLE=true`（之后可改为 `false`）
+- **登录 + 同步（需要 DB）**：设置 `G_CLIENT_ID`、`G_CLIENT_SECRET`、`JWT_SECRET`；首次运行 `INIT_TABLE=true`
+- **/api/detail 公共 Token（可选）**：设置 `DETAIL_PUBLIC_JWT_SECRET` 后，/api/detail 需要 `X-Detail-Token`（从 `/api/detail-token` 获取）
+
+说明：
+- Cloudflare Pages 使用 D1 绑定名 `NEWSNOW_DB`（见 `example.wrangler.toml`、`nitro.config.ts`）
+- Vercel preset 会禁用内置 sqlite；需要你自行接入外部数据库（见 `nitro.config.ts`）
+
 ### 数据库支持
 本项目主推 Cloudflare Pages 以及 Docker 部署， Vercel 需要你自行搞定数据库，其他支持的数据库可以查看 https://db0.unjs.io/connectors 。
 
