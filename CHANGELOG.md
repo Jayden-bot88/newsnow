@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+-
+
+## 1.0.0 - 2026-02-05
+
 - Improve detail extraction with meta image parsing, Zhihu support, and site content tuning.
 - Refine SSRF coverage for /api/detail and relocate the related tests.
 - Extend MCP server support with an end-to-end UI test.
