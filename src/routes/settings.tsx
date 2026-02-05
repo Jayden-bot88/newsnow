@@ -5,7 +5,7 @@ import $ from "clsx"
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import { useCallback, useMemo, useState } from "react"
 
-import { clearDismissedAtom, disabledSourcesAtom, dismissedSetAtom } from "~/atoms"
+import { clearDismissedAtom, disabledSourcesAtom, dismissedSetAtom, focusSourcesAtom, mutedKeywordsAtom } from "~/atoms"
 import { useToast } from "~/hooks/useToast"
 import { myFetch } from "~/utils"
 
@@ -13,10 +13,12 @@ type SourceHealthStatus = "ok" | "empty" | "fail" | "unknown"
 
 interface SourceHealthEntry {
   id: SourceID
+  resolvedId?: SourceID
   status: SourceHealthStatus
   count?: number
   httpStatus?: number
   message?: string
+  durationMs?: number
   checkedAt: number
 }
 
@@ -68,10 +70,44 @@ export const Route = createFileRoute("/settings")({
 
 function SettingsPage() {
   const [disabled, setDisabled] = useAtom(disabledSourcesAtom)
+  const [focusSources, setFocusSources] = useAtom(focusSourcesAtom)
+  const [mutedKeywords, setMutedKeywords] = useAtom(mutedKeywordsAtom)
   const disabledSet = useMemo(() => new Set(disabled), [disabled])
   const dismissed = useAtomValue(dismissedSetAtom)
   const clearDismissed = useSetAtom(clearDismissedAtom)
   const toast = useToast()
+
+  const [mutedInput, setMutedInput] = useState("")
+
+  const addMutedKeyword = useCallback(() => {
+    const k = mutedInput.trim()
+    if (!k) return
+    setMutedKeywords(prev => [k, ...prev])
+    setMutedInput("")
+    toast("已添加屏蔽词")
+  }, [mutedInput, setMutedKeywords, toast])
+
+  const removeMutedKeyword = useCallback((k: string) => {
+    const needle = k.trim().toLowerCase()
+    if (!needle) return
+    setMutedKeywords(prev => prev.filter(x => x.trim().toLowerCase() !== needle))
+    toast("已移除屏蔽词")
+  }, [setMutedKeywords, toast])
+
+  const clearMutedKeywords = useCallback(() => {
+    setMutedKeywords([])
+    toast("已清空屏蔽词")
+  }, [setMutedKeywords, toast])
+
+  const removeFocusSource = useCallback((id: SourceID) => {
+    setFocusSources(prev => prev.filter(x => x !== id))
+    toast("已取消关注")
+  }, [setFocusSources, toast])
+
+  const clearFocusSources = useCallback(() => {
+    setFocusSources([])
+    toast("已清空关注")
+  }, [setFocusSources, toast])
 
   const [health, setHealth] = useState<SourceHealthState | undefined>(() => loadHealthState())
   const [checking, setChecking] = useState(false)
@@ -269,10 +305,17 @@ function SettingsPage() {
         </div>
       )
     }
+    if (typeof h.durationMs === "number" && h.durationMs >= 1500) {
+      return (
+        <div className="mt-0.5 text-[11px] color-neutral-400 truncate" title={`耗时 ${h.durationMs}ms`}>
+          {`耗时 ${h.durationMs}ms`}
+        </div>
+      )
+    }
     return null
   }, [getHealth])
 
-  const runHealthCheck = useCallback(async () => {
+  const runHealthCheck = useCallback(async (force = false) => {
     if (checking) return
     setChecking(true)
     try {
@@ -281,6 +324,7 @@ function SettingsPage() {
         timeout: 180_000,
         body: {
           sources: enabled,
+          force,
         },
       }) as SourceHealthState
       saveHealthState(next)
@@ -311,9 +355,11 @@ function SettingsPage() {
         const h = getHealth(id)
         return {
           id,
+          resolvedId: h?.resolvedId,
           status: h?.status || "unknown",
           httpStatus: h?.httpStatus,
           message: h?.message,
+          durationMs: h?.durationMs,
         }
       }),
       ok: healthActions.ok,
@@ -360,6 +406,122 @@ function SettingsPage() {
         </button>
       </div>
 
+      <div className="px-3 py-2 text-[12px] color-neutral-500 border-t border-neutral-100">
+        内容过滤（关键词屏蔽）
+      </div>
+      <div className="px-3 py-3">
+        <div className="flex items-center gap-2">
+          <div className="text-[13px] color-neutral-600">
+            已屏蔽
+            {" "}
+            {mutedKeywords.length}
+            {" "}
+            个关键词
+          </div>
+          <button
+            type="button"
+            className="ml-auto px-3 h-8 rounded-full bg-neutral-100 text-[12px]"
+            onClick={clearMutedKeywords}
+            disabled={mutedKeywords.length === 0}
+          >
+            清空屏蔽词
+          </button>
+        </div>
+
+        <div className="mt-2 flex items-center gap-2">
+          <input
+            value={mutedInput}
+            onChange={e => setMutedInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                addMutedKeyword()
+              }
+            }}
+            placeholder="输入关键词并回车"
+            className="flex-1 h-9 px-3 rounded-[10px] bg-[var(--tt-search)] outline-none text-[13px]"
+          />
+          <button
+            type="button"
+            className="px-3 h-9 rounded-[10px] bg-neutral-900 text-white text-[13px] disabled:(bg-neutral-200 text-neutral-600)"
+            onClick={addMutedKeyword}
+            disabled={!mutedInput.trim()}
+          >
+            添加
+          </button>
+        </div>
+
+        {!!mutedKeywords.length && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {mutedKeywords.map(k => (
+              <button
+                key={k}
+                type="button"
+                className="h-8 px-3 rounded-full bg-neutral-100 text-[12px] flex items-center gap-1 active:bg-neutral-200"
+                onClick={() => removeMutedKeyword(k)}
+                title="点击移除"
+              >
+                <span className="truncate max-w-[220px]">{k}</span>
+                <span className="i-ph:x-bold text-[12px] op-60" />
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-2 text-[11px] color-neutral-400">
+          匹配标题与摘要（不区分大小写）。
+        </div>
+      </div>
+
+      <div className="px-3 py-2 text-[12px] color-neutral-500 border-t border-neutral-100">
+        关注来源
+      </div>
+      <div className="px-3 py-3">
+        <div className="flex items-center gap-2">
+          <div className="text-[13px] color-neutral-600">
+            已关注
+            {" "}
+            {focusSources.length}
+            {" "}
+            个来源
+          </div>
+          <button
+            type="button"
+            className="ml-auto px-3 h-8 rounded-full bg-neutral-100 text-[12px]"
+            onClick={clearFocusSources}
+            disabled={focusSources.length === 0}
+          >
+            清空关注
+          </button>
+        </div>
+
+        {!!focusSources.length && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {focusSources.map((id) => {
+              const s = sources[id]
+              const label = s?.desc || s?.title || s?.name || id
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  className="h-8 px-3 rounded-full bg-neutral-100 text-[12px] flex items-center gap-1 active:bg-neutral-200"
+                  onClick={() => removeFocusSource(id)}
+                  title="点击取消关注"
+                >
+                  <span className="truncate max-w-[220px]">{label}</span>
+                  <span className="i-ph:x-bold text-[12px] op-60" />
+                </button>
+              )
+            })}
+          </div>
+        )}
+        {!focusSources.length && (
+          <div className="mt-2 text-[11px] color-neutral-400">
+            在详情页点击“关注”即可添加。
+          </div>
+        )}
+      </div>
+
       <div className="px-3 py-3 flex items-center gap-2">
         <button
           type="button"
@@ -390,10 +552,19 @@ function SettingsPage() {
             "px-3 h-9 rounded-full text-[13px]",
             checking ? "bg-neutral-200 text-neutral-600" : "bg-neutral-100",
           ])}
-          onClick={runHealthCheck}
+          onClick={() => runHealthCheck(false)}
           disabled={checking}
         >
           {checking ? "检查中..." : "检查所有来源"}
+        </button>
+        <button
+          type="button"
+          className="px-3 h-9 rounded-full bg-neutral-100 text-[13px] disabled:(bg-neutral-200 text-neutral-600)"
+          onClick={() => runHealthCheck(true)}
+          disabled={checking}
+          title="忽略 5 分钟缓存，强制重查"
+        >
+          强制检查
         </button>
         {health?.checkedAt && !checking && (
           <div className="text-[12px] color-neutral-500">
