@@ -1,14 +1,57 @@
 import type { ColumnID, FixedColumnID, SourceID } from "@shared/types"
 import { fixedColumnIds, metadata } from "@shared/metadata"
+import { sources } from "@shared/sources"
 import { atom } from "jotai"
 import { atomWithStorage } from "jotai/utils"
 
 import { primitiveMetadataAtom } from "./primitiveMetadataAtom"
 import type { Update } from "./types"
 
-// Global kill-switch for problematic sources.
-// We filter at read-time so re-enabling preserves per-column ordering.
-export const disabledSourcesAtom = atomWithStorage<SourceID[]>("tt-disabled-sources", [])
+// Personal source disable.
+// Stored inside synced PrimitiveMetadata so it can follow the user across devices.
+export const disabledSourcesAtom = atom(
+  get => (get(primitiveMetadataAtom).data.disabledSources || []).filter(id => sources[id]),
+  (get, set, update: Update<SourceID[]>) => {
+    const prev = get(disabledSourcesAtom)
+    const nextRaw = update instanceof Function ? update(prev) : update
+    const next = Array.from(new Set(nextRaw.filter(id => sources[id]).map(id => sources[id].redirect ?? id)))
+    set(primitiveMetadataAtom, {
+      updatedTime: Date.now(),
+      action: "manual",
+      data: {
+        ...get(primitiveMetadataAtom).data,
+        disabledSources: next,
+      },
+    })
+  },
+)
+
+export const mutedKeywordsAtom = atom(
+  get => (get(primitiveMetadataAtom).data.mutedKeywords || []).filter(k => typeof k === "string"),
+  (get, set, update: Update<string[]>) => {
+    const prev = get(mutedKeywordsAtom)
+    const nextRaw = update instanceof Function ? update(prev) : update
+    const next: string[] = []
+    const seen = new Set<string>()
+    for (const s of nextRaw) {
+      const k = String(s).trim()
+      if (!k) continue
+      const d = k.toLowerCase()
+      if (seen.has(d)) continue
+      seen.add(d)
+      next.push(k)
+      if (next.length >= 200) break
+    }
+    set(primitiveMetadataAtom, {
+      updatedTime: Date.now(),
+      action: "manual",
+      data: {
+        ...get(primitiveMetadataAtom).data,
+        mutedKeywords: next,
+      },
+    })
+  },
+)
 
 export const focusSourcesAtom = atom((get) => {
   const disabled = new Set(get(disabledSourcesAtom))
