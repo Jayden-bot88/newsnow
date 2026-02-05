@@ -22,6 +22,18 @@ export const originSources = {
         title: "最新分享",
         column: "tech",
       },
+      create: {
+        title: "创意",
+        column: "tech",
+      },
+      ideas: {
+        title: "想法",
+        column: "tech",
+      },
+      programmer: {
+        title: "程序员",
+        column: "tech",
+      },
     },
   },
   "zaobao": {

@@ -16,6 +16,30 @@
     "interval": 600000,
     "title": "最新分享"
   },
+  "v2ex-create": {
+    "name": "V2EX",
+    "column": "tech",
+    "home": "https://v2ex.com/",
+    "color": "slate",
+    "interval": 600000,
+    "title": "创意"
+  },
+  "v2ex-ideas": {
+    "name": "V2EX",
+    "column": "tech",
+    "home": "https://v2ex.com/",
+    "color": "slate",
+    "interval": 600000,
+    "title": "想法"
+  },
+  "v2ex-programmer": {
+    "name": "V2EX",
+    "column": "tech",
+    "home": "https://v2ex.com/",
+    "color": "slate",
+    "interval": 600000,
+    "title": "程序员"
+  },
   "zaobao": {
     "name": "联合早报",
     "type": "realtime",
