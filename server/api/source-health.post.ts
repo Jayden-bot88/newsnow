@@ -7,10 +7,12 @@ type SourceHealthStatus = "ok" | "empty" | "fail" | "unknown"
 
 interface SourceHealthEntry {
   id: SourceID
+  resolvedId?: SourceID
   status: SourceHealthStatus
   count?: number
   httpStatus?: number
   message?: string
+  durationMs?: number
   checkedAt: number
 }
 
@@ -96,6 +98,7 @@ export default defineEventHandler(async (event) => {
       if (typeof getter !== "function") {
         next.byId[id] = {
           id,
+          resolvedId: resolved,
           status: "fail",
           httpStatus: 400,
           message: "Invalid source id",
@@ -104,21 +107,28 @@ export default defineEventHandler(async (event) => {
         continue
       }
 
+      const start = Date.now()
       try {
         const items = await withTimeout(Promise.resolve(getter()), timeoutMs)
+        const durationMs = Date.now() - start
         const count = Array.isArray(items) ? items.length : 0
         next.byId[id] = {
           id,
+          resolvedId: resolved,
           status: count ? "ok" : "empty",
           count,
+          durationMs,
           checkedAt,
         }
       } catch (e: any) {
+        const durationMs = Date.now() - start
         next.byId[id] = {
           id,
+          resolvedId: resolved,
           status: "fail",
           httpStatus: toHttpStatus(e),
           message: toMessage(e),
+          durationMs,
           checkedAt,
         }
       }
