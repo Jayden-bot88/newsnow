@@ -24,6 +24,13 @@ const nitroOption: Parameters<typeof viteNitro>[0] = {
   },
   imports: {
     dirs: ["server/utils", "shared"],
+    dirsScanOptions: {
+      filePatterns: [
+        "*.{ts,js,mjs,cjs,mts,cts}",
+        "!*.test.*",
+        "!*.spec.*",
+      ],
+    },
   },
   preset: "node-server",
   alias: {
