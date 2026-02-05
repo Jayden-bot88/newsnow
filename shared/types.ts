@@ -29,9 +29,27 @@ export type Metadata = Record<ColumnID, Column>
 
 export interface PrimitiveMetadata {
   updatedTime: number
-  data: Record<FixedColumnID, SourceID[]>
+
+  // Synced user state.
+  // NOTE: /api/me/sync currently stores only `data` + `updatedTime`.
+  // Keep values JSON-friendly and stable.
+  data: PrimitiveMetadataData
   action: "init" | "manual" | "sync"
 }
+
+// Synced user state.
+// Additional per-user preferences live alongside fixed columns.
+// Keep everything as arrays to match `verifyPrimitiveMetadata`.
+export type PrimitiveMetadataData =
+  & Record<string, string[]>
+  & Record<FixedColumnID, SourceID[]>
+  & {
+    // Personal source disable (separate from server-side blocklists).
+    disabledSources?: SourceID[]
+
+    // Case-insensitive keyword mute applied to feed/search.
+    mutedKeywords?: string[]
+  }
 
 export type FixedColumnID = (typeof fixedColumnIds)[number]
 export type HiddenColumnID = Exclude<ColumnID, FixedColumnID>
